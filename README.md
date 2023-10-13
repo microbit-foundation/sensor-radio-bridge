@@ -2,7 +2,30 @@
 
 [![Native Build Status](https://github.com/microbit-foundation/sensor-radio-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/microbit-foundation/sensor-radio-bridge/actions/workflows/build.yml)
 
-Description TBD.
+This is a simple initial version of a micro:bit C++ programme to receive
+accelerometer data via radio and bridge it to a computer via serial.
+
+In its current initial state it simply sends the data from the current
+micro:bit in the following format:
+
+```
+AX[408],AY[748],AZ[-1288],BA[0],BB[1],BL[0]
+AX[520],AY[-172],AZ[-448],BA[0],BB[1],BL[0]
+AX[-412],AY[436],AZ[340],BA[0],BB[1],BL[0]
+AX[-408],AY[504],AZ[-788],BA[0],BB[1],BL[0]
+AX[-480],AY[592],AZ[-736],BA[0],BB[1],BL[0]
+```
+
+Where:
+- AX = Accelerometer X axis
+- AY = Accelerometer X axis
+- AZ = Accelerometer X axis
+- BA = Button A state
+- BB = Button B state
+- BL = Button Logo state
+
+There is no reasoning behind this data format and it's only a starting point,
+to be modified once we know the requirements for the tool.
 
 
 ## Installation

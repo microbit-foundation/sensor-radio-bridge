@@ -4,11 +4,14 @@
 
 MicroBit uBit;
 
+// Configure what data to send via serial
 static const bool STREAM_ACC = true;
 static const bool STREAM_COMP = false;
 static const bool STREAM_BUTTONS = true;
 
-static const int PACKET_INTERVAL_MS = 10;
+// Configure how many milliseconds between serial messages
+static const int PACKET_INTERVAL_MS = 20;
+
 static const int SERIAL_BUFFER_LEN = 128;
 
 
