@@ -1,4 +1,4 @@
-name: Build Natively
+name: Build Project
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     name: Build & upload hex
     steps:
       - uses: actions/checkout@v3
@@ -33,5 +33,5 @@ jobs:
       - name: Upload hex file
         uses: actions/upload-artifact@v1
         with:
-          name: build-${{ matrix.os }}
+          name: sensor-serial-bridge
           path: MICROBIT.hex
