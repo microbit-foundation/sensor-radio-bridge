@@ -153,51 +153,101 @@ int sbp_sensorDataPeriodicStr(
 
 
 int sbp_processHandshake(
-    const char *msg, int msg_len, char *str_buffer, const int str_buffer_len
+    const char *msg, const int msg_len, char *str_buffer, const int str_buffer_len
 ) {
     // The handshake is always 15 characters long "C[12345678]HK[]"
     if (msg_len != 15) {
         return SBP_ERROR_LEN;
     }
 
-    char *msg_char = (char *)msg;
-
     // Check the message type is correct
-    if (*msg_char++ != 'C') {
+    if (*msg++ != 'C') {
         return SBP_ERROR_MSG_TYPE;
     }
-    if (*msg_char++ != '[') {
+    if (*msg++ != '[') {
         return SBP_ERROR_PROTOCOL_FORMAT;
     }
 
     // Check the ID is valid
-    char *id_start = msg_char;
-    static const int id_len = 8;
-    for (int i = 0; i < id_len; i++, msg_char++) {
-        if (!(*msg_char >= '0' && *msg_char <= '9') &&
-                !(*msg_char >= 'A' && *msg_char <= 'F') &&
-                    !(*msg_char >= 'a' && *msg_char <= 'f')) {
+    const char *cmd_id_start = msg;
+    static const int cmd_id_len = 8;
+    for (int i = 0; i < cmd_id_len; i++, msg++) {
+        if (!(*msg >= '0' && *msg <= '9') &&
+                !(*msg >= 'A' && *msg <= 'F') &&
+                    !(*msg >= 'a' && *msg <= 'f')) {
             return SBP_ERROR_PROTOCOL_FORMAT;
         }
     }
 
-    if (*msg_char++ != ']') {
+    if (*msg++ != ']') {
         return SBP_ERROR_PROTOCOL_FORMAT;
     }
 
-    // Check the command is a handshake
-    if (strncmp(msg_char, "HS[]", 4) != 0) {
+    // Check the command is a handshake, it never has any data inside
+    if (strncmp(msg, "HS[]", 4) != 0) {
         return SBP_ERROR_CMD_TYPE;
     }
 
-    // Create the response
+    // Create the response with the command ID and the protocol version
     char response[]= "R[XXXXXXXX]HS[" SBP_PROTOCOL_VERSION "]" SBP_MSG_SEPARATOR;
     if (str_buffer_len < (int)sizeof(response)) {
         return SBP_ERROR_LEN;
     }
-    strncpy(str_buffer, response, sizeof(response));
-    for (int i = 0; i < id_len; i++) {
-        str_buffer[2 + i] = *(id_start + i);
+    strncpy(str_buffer, response, str_buffer_len);
+    for (int i = 0; i < cmd_id_len; i++) {
+        str_buffer[2 + i] = *(cmd_id_start + i);
+    }
+
+    // Don't include the null terminator in the length
+    return sizeof(response) - 1;
+}
+
+// TODO: To a simple pre-define start message to be able to send something quickly
+// int sbp_processCommand(
+int sbp_processStart(
+    const char *msg, const int msg_len, char *str_buffer, const int str_buffer_len
+) {
+    // The handshake is always 15 characters long "C[12345678]HK[]"
+    if (msg_len != 24) {
+        return SBP_ERROR_LEN;
+    }
+
+    // Check the message type is correct
+    if (*msg++ != 'C') {
+        return SBP_ERROR_MSG_TYPE;
+    }
+    if (*msg++ != '[') {
+        return SBP_ERROR_PROTOCOL_FORMAT;
+    }
+
+    // Check the ID is valid
+    const char *cmd_id_start = msg;
+    static const int cmd_id_len = 8;
+    for (int i = 0; i < cmd_id_len; i++, msg++) {
+        if (!(*msg >= '0' && *msg <= '9') &&
+                !(*msg >= 'A' && *msg <= 'F') &&
+                    !(*msg >= 'a' && *msg <= 'f')) {
+            return SBP_ERROR_PROTOCOL_FORMAT;
+        }
+    }
+
+    if (*msg++ != ']') {
+        return SBP_ERROR_PROTOCOL_FORMAT;
+    }
+
+    // Check the command is a handshake, it never has any data inside
+    if (strncmp(msg, "START[A,B,BL]", 13) != 0) {
+        return SBP_ERROR_CMD_TYPE;
+    }
+
+    // Create the response with the command ID and the protocol version
+    char response[]= "R[XXXXXXXX]START[]" SBP_MSG_SEPARATOR;
+    if (str_buffer_len < (int)sizeof(response)) {
+        return SBP_ERROR_LEN;
+    }
+    strncpy(str_buffer, response, str_buffer_len);
+    for (int i = 0; i < cmd_id_len; i++) {
+        str_buffer[2 + i] = *(cmd_id_start + i);
     }
 
     // Don't include the null terminator in the length

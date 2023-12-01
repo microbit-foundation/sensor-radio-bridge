@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Simple test that establishes a serial connection to the micro:bit and sends
-the commands expected to configures the sensors to stream and consumes the
-received data.
+the commands expected to configures the sensors data to start streaming.
+
+It prints all sent and received data to the terminal for inspection.
 """
 import sys
 import time
@@ -99,8 +100,22 @@ def main():
     if response_cmd != "HS[1]":
         raise Exception("Handshake failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Handshake failed.")
+        raise Exception("Periodic messages received, handshake failed.")
     print("(SCRIPT) Handshake successful.")
+
+    print("(SCRIPT) Sending start command.")
+    sent_start, start_response, periodic_msgs = send_command_wait_for_response(ubit_serial, "START[A,B,BL]")
+    print(f"\t(SENT   ➡️) {sent_start}")
+    if not start_response:
+        raise Exception("Start command failed.")
+    print(f"\t(DEVICE 🔙) {start_response}")
+    # Parsing he response to check if it's a handshake response with "1" as the version
+    response_cmd = start_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "START[]":
+        raise Exception("Start command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, start command  failed.")
+    print("(SCRIPT) Start command successful.")
 
     print("(SCRIPT) Printing all periodic messages received now...")
     timeout_time = time.time() + 1    # 1 second timeout
