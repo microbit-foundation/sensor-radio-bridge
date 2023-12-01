@@ -94,8 +94,9 @@ def main():
     if not handshake_response:
         raise Exception("Handshake failed.")
     print(f"\t(DEVICE 🔙) {handshake_response}")
+    # Parsing he response to check if it's a handshake response with "1" as the version
     response_cmd = handshake_response.decode("ascii").split("]", 1)[1]
-    if response_cmd != "HS[]":
+    if response_cmd != "HS[1]":
         raise Exception("Handshake failed.")
     if len(periodic_msgs) != 0:
         raise Exception("Handshake failed.")
@@ -106,7 +107,10 @@ def main():
     while time.time() < timeout_time:
         serial_line = ubit_serial.readline()
         if len(serial_line) > 0:
-            print(f"(DEVICE 🔁) {serial_line[:-1]}")
+            if serial_line.startswith(b"P["):
+                print(f"(DEVICE 🔁) {serial_line[:-1]}")
+            else:
+                raise Exception(f"Message received is not periodic type: {serial_line}")
             timeout_time = time.time() + 1    # 1 second timeout
 
     print("(SCRIPT ➡️) Timeout.")

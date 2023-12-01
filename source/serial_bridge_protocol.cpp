@@ -139,11 +139,12 @@ int sbp_sensorDataPeriodicStr(
     // Ensure the string ends with a carriage return and new line
     if ((str_buffer_len - serial_data_length) >= 2) {
         serial_data_length += snprintf(
-            str_buffer + serial_data_length, 2, "\n"
+            str_buffer + serial_data_length, 2, SBP_MSG_SEPARATOR
         );
     } else {
-        str_buffer[str_buffer_len - 2] = '\n';
-        str_buffer[str_buffer_len - 1] = '\0';
+        serial_data_length += snprintf(
+            str_buffer + (str_buffer_len - 2), 2, SBP_MSG_SEPARATOR
+        );
         return SBP_ERROR_LEN;
     }
 
@@ -190,7 +191,7 @@ int sbp_processHandshake(
     }
 
     // Create the response
-    char response[]= "R[XXXXXXXX]HS[]\n";
+    char response[]= "R[XXXXXXXX]HS[" SBP_PROTOCOL_VERSION "]" SBP_MSG_SEPARATOR;
     if (str_buffer_len < (int)sizeof(response)) {
         return SBP_ERROR_LEN;
     }

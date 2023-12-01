@@ -9,7 +9,9 @@
 #define SBP_ERROR_MSG_TYPE          (-5)
 #define SBP_ERROR_CMD_TYPE          (-5)
 
-#define SBP_MSG_SEPARATOR           ('\n')
+#define SBP_MSG_SEPARATOR           "\n"
+
+#define SBP_PROTOCOL_VERSION        "1"
 
 /**
  * @brief Flags to hold which sensors are enabled in the protocol.
