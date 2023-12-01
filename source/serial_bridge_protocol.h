@@ -5,6 +5,11 @@
 #define SBP_ERROR                   (-1)
 #define SBP_ERROR_LEN               (-2)
 #define SBP_ERROR_ENCODING          (-3)
+#define SBP_ERROR_PROTOCOL_FORMAT   (-4)
+#define SBP_ERROR_MSG_TYPE          (-5)
+#define SBP_ERROR_CMD_TYPE          (-5)
+
+#define SBP_MSG_SEPARATOR           ('\n')
 
 /**
  * @brief Flags to hold which sensors are enabled in the protocol.
@@ -55,7 +60,10 @@ typedef struct sbp_sensor_data_s {
  * @return The number of characters written to the buffer, excluding the
  *         null terminator, or a negative number if an error occurred.
  */
-int sbp_sensorDataSerialStr(const sbp_sensors_t enabled_data,
-                            const sbp_sensor_data_t *data,
-                            char *str_buffer,
-                            int str_buffer_len);
+int sbp_sensorDataPeriodicStr(const sbp_sensors_t enabled_data,
+                              const sbp_sensor_data_t *data,
+                              char *str_buffer,
+                              int str_buffer_len);
+
+
+int sbp_processHandshake(const char *msg, int msg_len, char *str_buffer, const int str_buffer_len);

@@ -68,14 +68,24 @@ int main() {
         .sound_level = true,
     };
 
+    ManagedString handshake_cmd = uBit.serial.readUntil(SBP_MSG_SEPARATOR, SYNC_SLEEP);
+    int response_len = sbp_processHandshake(
+            handshake_cmd.toCharArray(), handshake_cmd.length(),
+            serial_data, serial_data_len);
+    if (response_len < SBP_SUCCESS) {
+        uBit.panic(200);
+    }
+    uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
+
+
     sbp_sensor_data_t sensor_data = {};
     uint32_t next_packet = uBit.systemTime() + PACKET_INTERVAL_MS;
     while (true) {
         updateSensorData(sensor_config, &sensor_data);
-        int serial_str_length = sbp_sensorDataSerialStr(
+        int serial_str_length = sbp_sensorDataPeriodicStr(
             sensor_config, &sensor_data, serial_data, serial_data_len);
         if (serial_str_length < SBP_SUCCESS) {
-            uBit.panic(120 + (serial_str_length * -1));
+            uBit.panic(220 + (serial_str_length * -1));
         }
 
         // For development/debugging purposes, uncomment to print how much
