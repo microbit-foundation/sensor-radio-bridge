@@ -91,7 +91,7 @@ int main() {
         uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
         sensor_config = (sbp_sensors_t){ };
         sensor_config.accelerometer = true;
-        sensor_config.button_pins = true;
+        sensor_config.buttons = true;
         sensor_config.button_logo = true;
         start_received = true;
     }
