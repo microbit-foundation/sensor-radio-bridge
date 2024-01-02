@@ -1,5 +1,9 @@
 #pragma once
 
+// TODO: Should only include ManagedString.h, but that doesn't compile
+#include "ManagedString.h"
+
+
 /** Error codes */
 #define SBP_SUCCESS                 (0)
 #define SBP_ERROR                   (-1)
@@ -8,19 +12,81 @@
 #define SBP_ERROR_PROTOCOL_FORMAT   (-4)
 #define SBP_ERROR_MSG_TYPE          (-5)
 #define SBP_ERROR_CMD_TYPE          (-6)
+#define SBP_ERROR_CMD_VALUE         (-7)
 
 #define SBP_MSG_SEPARATOR           "\n"
 
 #define SBP_PROTOCOL_VERSION        "1"
 
+typedef struct sbp_state_s sbp_state_t;
+
 /**
- * @brief Enum to list all the different protocol message types.
+ * Each protocol message starts with a single character to identify the type.
+ */
+typedef enum sbp_msg_type_e {
+    SBP_MSG_COMMAND,
+    SBP_MSG_RESPONSE,
+    SBP_MSG_PERIODIC,
+    SBP_MSG_TYPE_LEN,
+} sbp_msg_type_t;
+
+const char sbp_msg_type_char[SBP_MSG_TYPE_LEN] = {
+    'C',    // SBP_MSG_COMMAND
+    'R',    // SBP_MSG_RESPONSE
+    'P',    // SBP_MSG_PERIODIC
+};
+
+/**
+ * @brief List of all the different protocol command/response types.
  */
 typedef enum sbp_cmd_type_e {
     SBP_CMD_HANDSHAKE,
+    SBP_CMD_RADIOGROUP,
+    SBP_CMD_SWVERSION,
+    SBP_CMD_HWVERSION,
     SBP_CMD_START,
     SBP_CMD_STOP,
+    SBP_CMD_TYPE_LEN,
 } sbp_cmd_type_t;
+
+const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
+    "HS",       // SBP_CMD_HANDSHAKE
+    "RG",       // SBP_CMD_RADIOGROUP
+    "SWVER",    // SBP_CMD_SWVERSION
+    "HWVER",    // SBP_CMD_HWVERSION
+    "START",    // SBP_CMD_START
+    "STOP",     // SBP_CMD_STOP
+};
+
+/**
+ * @brief Structure of function pointers to use as callbacks for each command.
+ */
+typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
+typedef struct sbp_cmd_callback_s {
+    sbp_cmd_callback_t handshake = NULL;
+    sbp_cmd_callback_t radiogroup = NULL;
+    sbp_cmd_callback_t swversion = NULL;
+    sbp_cmd_callback_t hwversion = NULL;
+    sbp_cmd_callback_t start = NULL;
+    sbp_cmd_callback_t stop = NULL;
+} sbp_cmd_callbacks_t;
+
+/**
+ * @brief Structure to hold a protocol command message.
+ * 
+ * The line pointer is a null terminated string.
+ * The id and value start values are the index inside the line string
+ * containing this data.
+ */
+typedef struct sbp_cmd_s {
+    sbp_cmd_type_t type;
+    const char* line;
+    size_t line_len;
+    size_t id_start;
+    size_t id_len;
+    size_t value_start;
+    size_t value_len;
+} sbp_cmd_t;
 
 /**
  * @brief Flags to hold which sensors are enabled in the protocol.
@@ -35,6 +101,15 @@ typedef struct sbp_sensors_s {
     bool light_level : 1;
     bool sound_level : 1;
 } sbp_sensors_t;
+
+/**
+ * @brief Structure to hold the state of the protocol.
+ */
+typedef struct sbp_state_s {
+    uint8_t radio_group = 0;
+    bool send_periodic = true;
+    sbp_sensors_t sensors = { };
+} sbp_state_t;
 
 /**
  * @brief Structure to hold all the sensor data available in the protocol
@@ -57,6 +132,14 @@ typedef struct sbp_sensor_data_s {
     int sound_level = 0;
 } sbp_sensor_data_t;
 
+
+/**
+ * @brief Initialises the protocol data structures.
+ *
+ * @param cmd_callbacks Function pointers for each command.
+ * @param protocol_state The protocol state structure to initialize.
+ */
+void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state);
 
 /**
  * @brief Converts sensor data to a protocol serial string representation.
@@ -86,7 +169,7 @@ int sbp_sensorDataPeriodicStr(const sbp_sensors_t enabled_data,
  * @return int The number of characters written to the buffer, excluding the
  *        null terminator, or a negative number if an error occurred.
  */
-int sbp_processHandshake(const char *msg, int msg_len, char *str_buffer, const int str_buffer_len);
+int sbp_processHandshake(const ManagedString& msg, char *str_buffer, const size_t str_buffer_len);
 
 /**
  * @brief Processes a command message, identifies it, and prepares the
@@ -99,6 +182,4 @@ int sbp_processHandshake(const char *msg, int msg_len, char *str_buffer, const i
  * @return int The number of characters written to the buffer, excluding the
  *        null terminator, or a negative number if an error occurred.
  */
-//int sbp_processCommand(const char *msg, const int msg_len, char *str_buffer, const int str_buffer_len);
-// TODO: To a simple pre-define start message to be able to send something quickly
-int sbp_processStart(const char *msg, const int msg_len, char *str_buffer, const int str_buffer_len);
+int sbp_processCommand(const ManagedString& msg, sbp_state_t *protocol_state, char *str_buffer, const size_t str_buffer_len);

@@ -5,13 +5,19 @@
 
 MicroBit uBit;
 
-
 // Configure how many milliseconds between serial messages
-static const int PACKET_INTERVAL_MS = 20;
+static const int PERIODIC_INTERVAL_MS = 50;
+static const int CMD_RESPONSE_TIME = 10;
 
 static const int SERIAL_BUFFER_LEN = 128;
 
-
+/**
+ * @brief Updates the sensor data structure with the current values as enabled
+ * in sensor_config.
+ *
+ * @param sensor_config The sensor configuration to use.
+ * @param sensor_data The sensor data structure to update.
+ */
 void updateSensorData(const sbp_sensors_t sensor_config, sbp_sensor_data_t *sensor_data) {
     if (sensor_config.accelerometer) {
         sensor_data->accelerometer_x = uBit.accelerometer.getX();
@@ -53,66 +59,63 @@ int main() {
     uBit.serial.setRxBufferSize(SERIAL_BUFFER_LEN);
     uBit.serial.setBaudrate(115200);
 
-    const int serial_data_len = SERIAL_BUFFER_LEN + 1;
+    const size_t serial_data_len = SERIAL_BUFFER_LEN + 1;
     char serial_data[serial_data_len];
 
-    // Default data to send
-    sbp_sensors_t sensor_config = {
-        .accelerometer = true,
-        .magnetometer = true,
-        .buttons = true,
-        .button_logo = true,
-        .button_pins = true,
-        .temperature = true,
-        .light_level = true,
-        .sound_level = true,
-    };
+    sbp_state_t protocol_state = { };
+    sbp_sensor_data_t sensor_data = { };
+    sbp_cmd_callbacks_t protocol_callbacks = { };
 
+    sbp_init(&protocol_callbacks, &protocol_state);
+
+    // The first message should always be the handshake
     ManagedString handshake_cmd = uBit.serial.readUntil(SBP_MSG_SEPARATOR, SYNC_SLEEP);
-    int response_len = sbp_processHandshake(
-            handshake_cmd.toCharArray(), handshake_cmd.length(),
-            serial_data, serial_data_len);
-    if (response_len < SBP_SUCCESS) {
-        uBit.panic(200);
-    }
-    uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
+    int hs_response_len = sbp_processHandshake(handshake_cmd, serial_data, serial_data_len);
+    if (hs_response_len < SBP_SUCCESS) uBit.panic(200);
+    uBit.serial.send((uint8_t *)serial_data, hs_response_len, SYNC_SLEEP);
 
-
-    bool start_received = false;
-    while (!start_received) {
-        ManagedString cmd = uBit.serial.readUntil(SBP_MSG_SEPARATOR, SYNC_SLEEP);
-        // TODO: To a simple pre-define start message to be able to send something quickly
-        //int response_len = sbp_processCommand(
-        int response_len = sbp_processStart(
-                cmd.toCharArray(), cmd.length(), serial_data, serial_data_len);
-        if (response_len < SBP_SUCCESS) {
-            uBit.panic(210);
-        }
-        uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
-        sensor_config = (sbp_sensors_t){ };
-        sensor_config.accelerometer = true;
-        sensor_config.buttons = true;
-        sensor_config.button_logo = true;
-        start_received = true;
-    }
-
-    sbp_sensor_data_t sensor_data = {};
-    uint32_t next_packet = uBit.systemTime() + PACKET_INTERVAL_MS;
+    // Now process any other message while sending periodic messages (if enabled)
+    uint32_t next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
     while (true) {
-        updateSensorData(sensor_config, &sensor_data);
-        int serial_str_length = sbp_sensorDataPeriodicStr(
-            sensor_config, &sensor_data, serial_data, serial_data_len);
-        if (serial_str_length < SBP_SUCCESS) {
-            uBit.panic(220);
+        while ((uBit.systemTime() + CMD_RESPONSE_TIME) < next_periodic_msg) {
+            ManagedString cmd = uBit.serial.readUntil(SBP_MSG_SEPARATOR, ASYNC);
+            if (cmd.length() > 0) {
+                // Read any incoming message & process it
+                int response_len = sbp_processCommand(cmd, &protocol_state, serial_data, serial_data_len);
+                if (response_len < SBP_SUCCESS) uBit.panic(210);
+
+                // For development, uncomment to check available free time
+                // uBit.serial.printf("t[%d]", next_periodic_msg - uBit.systemTime());
+
+                uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
+            }
+            // Sleep if there is still plenty of time before the next periodic message
+            if (!uBit.serial.isReadable() &&
+                    ((uBit.systemTime() + (CMD_RESPONSE_TIME * 2)) < next_periodic_msg)) {
+                uBit.sleep(1);
+            }
         }
 
-        // For development/debugging purposes, uncomment to print how much
-        // free time there is available for other operations
-        // uBit.serial.printf("t[%d]", next_packet - uBit.systemTime());
+        // If periodic messages are enabled, send them
+        if (protocol_state.send_periodic) {
+            updateSensorData(protocol_state.sensors, &sensor_data);
+            int serial_str_length = sbp_sensorDataPeriodicStr(
+                protocol_state.sensors, &sensor_data, serial_data, serial_data_len);
+            if (serial_str_length < SBP_SUCCESS) {
+                uBit.panic(220);
+            }
 
-        // Now wait until ready to send the next serial message
-        while (uBit.systemTime() < next_packet);
-        next_packet = uBit.systemTime() + PACKET_INTERVAL_MS;
-        uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
+            // For development, uncomment to check available free time
+            // uBit.serial.printf("t[%d]", next_periodic_msg - uBit.systemTime());
+
+            // Now wait until ready to send the next serial message
+            while (uBit.systemTime() < next_periodic_msg);
+            next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
+            uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
+            // uBit.serial.printf("t[%d]\n", next_periodic_msg - uBit.systemTime());
+        } else {
+            while (uBit.systemTime() < next_periodic_msg);
+            next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
+        }
     }
 }
