@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include "MicroBitFlash.h"
 #include "MicroBit.h"
 #include "serial_bridge_protocol.h"
 
@@ -10,6 +11,41 @@ static const int PERIODIC_INTERVAL_MS = 50;
 static const int CMD_RESPONSE_TIME = 10;
 
 static const int SERIAL_BUFFER_LEN = 128;
+
+// Last 1 KB of flash where we can store the radio group
+// Writes to flash need to be aligned to 4 bytes
+static const uint32_t RADIO_GROUP_ADDR = 0x0007FC00;
+static const uint8_t RADIO_GROUP_DEFAULT = 42;
+
+/**
+ * @brief Stores the radio group in flash.
+ *
+ * @param radio_group The radio group to store, a value from 0 to 255.
+ */
+int storeRadioGroup(sbp_state_s *protocol_state) {
+    uint32_t *flash_radio_group = (uint32_t *)RADIO_GROUP_ADDR;
+    if (*flash_radio_group == 0xFFFFFFFF) {
+        uint32_t radio_group_value = protocol_state->radio_group;
+        // TODO: Commented out so that we don't need to constantly reflash during development
+        // MicroBitFlash flash;
+        // int success = flash.flash_write(
+        //         (void *)RADIO_GROUP_ADDR, (void *)&radio_group_value, 4, NULL);
+        // if (success != MICROBIT_OK) uBit.panic(230);
+        // if (*flash_radio_group != radio_group_value) uBit.panic(231);
+
+        int success = uBit.radio.setGroup(protocol_state->radio_group);
+        if (success != MICROBIT_OK) uBit.panic(232);
+    } else if ((uint32_t)protocol_state->radio_group != *flash_radio_group) {
+        // TODO: Right now it just responds with the configure group
+        //       but it should probably be an error
+        if (*flash_radio_group > 255) {
+            uBit.panic(233);
+        }
+        protocol_state->radio_group = (uint8_t)*flash_radio_group;
+        // uBit.panic(234);
+    }
+    return SBP_SUCCESS;
+}
 
 /**
  * @brief Updates the sensor data structure with the current values as enabled
@@ -65,6 +101,7 @@ int main() {
     sbp_state_t protocol_state = { };
     sbp_sensor_data_t sensor_data = { };
     sbp_cmd_callbacks_t protocol_callbacks = { };
+    protocol_callbacks.radiogroup = storeRadioGroup;
 
     sbp_init(&protocol_callbacks, &protocol_state);
 

@@ -179,7 +179,10 @@ static int sbp_generateResponseStr(
 }
 
 static int sbp_generateErrorResponseStr(const sbp_cmd_t *cmd, char *str_buffer, const size_t str_buffer_len) {
-    // TODO: Need to write this function
+    // TODO: Implement this in a way that is not hard coded
+    char response[]= "R[12345678]ERROR[1234]" SBP_MSG_SEPARATOR;
+    strncpy(str_buffer, response, str_buffer_len);
+
     return SBP_SUCCESS;
 }
 
@@ -225,9 +228,14 @@ static int sbp_processCommandResponse(
             if (callback_result < 0) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
+            // Convert protocol_state->radio_group into a string
+            char response_radio_group[4] = { 0 };
+            size_t group_str_len = snprintf(response_radio_group, 4, "%d", protocol_state->radio_group);
+            if (group_str_len < 1) {
+                return SBP_ERROR_ENCODING;
+            }
             return sbp_generateResponseStr(
-                    received_cmd, received_cmd->line + received_cmd->value_start, received_cmd->value_len,
-                    str_buffer, str_buffer_len);
+                    received_cmd, response_radio_group, group_str_len, str_buffer, str_buffer_len);
         }
         case SBP_CMD_SWVERSION: {
             if (cmd_cbk.swversion) {

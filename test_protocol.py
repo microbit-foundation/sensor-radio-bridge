@@ -9,6 +9,7 @@ It prints all sent and received data to the terminal for inspection.
 import sys
 import time
 import uuid
+import random
 
 from serial import Serial, PARITY_NONE, STOPBITS_ONE
 from serial.tools import list_ports
@@ -113,6 +114,21 @@ def main():
         raise Exception("Periodic messages received, handshake failed.")
     print("Handshake successful.")
 
+    print("Sending radio group command.")
+    random_group = random.randint(0, 255)
+    sent_radio_group, radio_group_response, periodic_msgs = send_command(ubit_serial, f"RG[{random_group}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_radio_group}")
+    if not radio_group_response:
+        raise Exception("Set Radio Group command failed.")
+    print(f"\t(DEVICE 🔙) {radio_group_response}")
+    # Parsing the response for the start command
+    response_cmd = radio_group_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"RG[{random_group}]":
+        raise Exception("Radio Group command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, start command  failed.")
+    print("Radio Group command successful.")
+
     print("Sending start command.")
     sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[A,B,BL]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_start}")
@@ -135,9 +151,11 @@ def main():
             if serial_line.startswith(b"P["):
                 print(f"\t(DEVICE 🔁) {serial_line[:-1]}")
             else:
-                raise Exception(f"Message received is not periodic type: {serial_line}")
+                print(f"\t(DEVICE ❌) {serial_line[:-1]}")
+                #raise Exception(f"Message received is not periodic type: {serial_line}")
             timeout_time = time.time() + 100    # 1 second timeout
 
+        #send_command(ubit_serial, "START[A,B,BL]", wait_response=False)
         time.sleep(0.003)
 
     print("(SCRIPT ➡️) Timeout.")

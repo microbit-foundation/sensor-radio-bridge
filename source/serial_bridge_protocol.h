@@ -1,7 +1,7 @@
 #pragma once
 
 // TODO: Should only include ManagedString.h, but that doesn't compile
-#include "ManagedString.h"
+#include "MicroBit.h"
 
 
 /** Error codes */
