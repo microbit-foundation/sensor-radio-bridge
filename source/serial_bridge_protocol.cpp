@@ -273,6 +273,7 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         case SBP_CMD_STOP: {
+            protocol_state->send_periodic = false;
             if (cmd_cbk.stop) {
                 callback_result = cmd_cbk.stop(protocol_state);
             }
