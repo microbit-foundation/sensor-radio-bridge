@@ -114,9 +114,9 @@ static int sbp_parseCommand(const char *msg, const size_t msg_len, sbp_cmd_t *cm
     cmd->type = cmd_type;
     cmd->line = msg_start;
     cmd->line_len = msg_len;
-    cmd->id_start = id_start;
+    cmd->id = msg_start + id_start;
     cmd->id_len = id_len;
-    cmd->value_start = value_start;
+    cmd->value = msg_start + value_start;
     cmd->value_len = value_len;
 
     return SBP_SUCCESS;
@@ -150,9 +150,8 @@ static int sbp_generateResponseStr(
 
     // Copy the command ID
     str_buffer[buffer_i++] = '[';
-    char *cmd_id_start = (char *)(cmd->line + cmd->id_start);
     for (size_t i = 0; i < cmd->id_len; i++) {
-        str_buffer[buffer_i++] = *(cmd_id_start + i);
+        str_buffer[buffer_i++] = *(cmd->id + i);
     }
     str_buffer[buffer_i++] = ']';
 
@@ -214,8 +213,7 @@ static int sbp_processCommandResponse(
         }
         case SBP_CMD_RADIOGROUP: {
             int radio_group;
-            int conversion_state = intFromCommandValue(
-                received_cmd->line + received_cmd->value_start, received_cmd->value_len, &radio_group);
+            int conversion_state = intFromCommandValue(received_cmd->value, received_cmd->value_len, &radio_group);
             if (conversion_state != SBP_SUCCESS || radio_group < 0 || radio_group > 255) {
                 return SBP_ERROR_CMD_VALUE;
             }
@@ -258,12 +256,22 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(received_cmd, "2", 1, str_buffer, str_buffer_len);
         }
         case SBP_CMD_START: {
+            protocol_state->sensors.raw = 0;
+            // The value format for the start command is a single letter for each sensor type
+            // e.g. "AMBL" for accelerometer, magnetometer, buttons and light level
+            for (size_t i = 0; i < received_cmd->value_len; i++) {
+                char value_char = *(received_cmd->value + i);
+                bool sensor_found = false;
+                for (size_t j = 0; j < SBP_SENSOR_TYPE_LEN; j++) {
+                    if (value_char == sbp_sensor_type[j]) {
+                        protocol_state->sensors.raw |= (uint8_t)(1 << j);
+                        sensor_found = true;
+                        break;
+                    }
+                }
+                if (!sensor_found) return SBP_ERROR_CMD_VALUE;
+            }
             protocol_state->send_periodic = true;
-            // TODO: process the content inside the value to determine which sensors to enable
-            protocol_state->sensors = (sbp_sensors_t){ };
-            protocol_state->sensors.accelerometer = true;
-            protocol_state->sensors.buttons = true;
-            protocol_state->sensors.button_logo = true;
             if (cmd_cbk.start) {
                 callback_result = cmd_cbk.start(protocol_state);
             }
@@ -304,16 +312,9 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     // Set protocol state defaults
     protocol_state->radio_group = 42;
     protocol_state->send_periodic = false;
-    protocol_state->sensors = (sbp_sensors_t){
-        .accelerometer = true,
-        .magnetometer = true,
-        .buttons = true,
-        .button_logo = true,
-        .button_pins = true,
-        .temperature = true,
-        .light_level = true,
-        .sound_level = true,
-    };
+    protocol_state->sensors.raw = 0;
+    protocol_state->sensors.accelerometer = true;
+    protocol_state->sensors.buttons = true;
 }
 
 int sbp_sensorDataPeriodicStr(
@@ -339,7 +340,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "AX[%d]AY[%d]AZ[%d]",
+            SBP_SENSOR_STR_ACC_X "[%d]" SBP_SENSOR_STR_ACC_Y "[%d]" SBP_SENSOR_STR_ACC_Z "[%d]",
             data->accelerometer_x,
             data->accelerometer_y,
             data->accelerometer_z
@@ -354,7 +355,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "CX[%d]CY[%d]CZ[%d]",
+            SBP_SENSOR_STR_MAG_X "[%d]" SBP_SENSOR_STR_MAG_Y "[%d]" SBP_SENSOR_STR_MAG_Z "[%d]",
             data->magnetometer_x,
             data->magnetometer_y,
             data->magnetometer_z
@@ -369,7 +370,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "BA[%d]BB[%d]",
+            SBP_SENSOR_STR_BTN_A "[%d]" SBP_SENSOR_STR_BTN_B "[%d]",
             data->button_a,
             data->button_b
         );
@@ -383,7 +384,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "BL[%d]",
+            SBP_SENSOR_STR_BTN_LOGO "[%d]",
             data->button_logo
         );
         if (cx > 0) {
@@ -396,7 +397,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "B0[%d]B1[%d]B2[%d]",
+            SBP_SENSOR_STR_BTN_P0 "[%d]" SBP_SENSOR_STR_BTN_P1 "[%d]" SBP_SENSOR_STR_BTN_P2 "[%d]",
             data->button_p0,
             data->button_p1,
             data->button_p2
@@ -411,7 +412,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "T[%d]",
+            SBP_SENSOR_STR_TEMP "[%d]",
             data->temperature
         );
         if (cx > 0) {
@@ -424,7 +425,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "L[%d]",
+            SBP_SENSOR_STR_LIGHT "[%d]",
             data->light_level
         );
         if (cx > 0) {
@@ -437,7 +438,7 @@ int sbp_sensorDataPeriodicStr(
         int cx = snprintf(
             str_buffer + serial_data_length,
             str_buffer_len - serial_data_length,
-            "S[%d]",
+            SBP_SENSOR_STR_SOUND "[%d]",
             data->sound_level
         );
         if (cx > 0) {

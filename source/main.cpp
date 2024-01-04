@@ -14,10 +14,6 @@ static const int CMD_RESPONSE_TIME = 10;
 
 static const int SERIAL_BUFFER_LEN = 128;
 
-// Last 1 KB of flash where we can store the radio group
-// Writes to flash need to be aligned to 4 bytes
-static const uint32_t RADIO_GROUP_ADDR = 0x0007FC00;
-
 static sbp_sensor_data_t sensor_data = { };
 
 /**
@@ -42,7 +38,11 @@ static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
  * @param radio_group The radio group to store, a value from 0 to 255.
  */
 int storeRadioGroup(sbp_state_s *protocol_state) {
+    // Last 1 KB of flash where we can store the radio group
+    // Writes to flash need to be aligned to 4 bytes
+    const uint32_t RADIO_GROUP_ADDR = 0x0007FC00;
     uint32_t *stored_radio_group = (uint32_t *)RADIO_GROUP_ADDR;
+
     if (*stored_radio_group == 0xFFFFFFFF) {
         uint32_t stored_radio_group = protocol_state->radio_group;
         // TODO: Commented out so that we don't need to constantly reflash during development

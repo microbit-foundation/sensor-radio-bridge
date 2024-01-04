@@ -72,44 +72,92 @@ typedef struct sbp_cmd_callback_s {
 } sbp_cmd_callbacks_t;
 
 /**
+ * @brief All the string literals for the different sensor types and subtypes.
+ */
+#define SBP_SENSOR_STR_ACC          "A"
+#define SBP_SENSOR_STR_ACC_X        "AX"
+#define SBP_SENSOR_STR_ACC_Y        "AY"
+#define SBP_SENSOR_STR_ACC_Z        "AZ"
+#define SBP_SENSOR_STR_MAG          "M"
+#define SBP_SENSOR_STR_MAG_X        "MX"
+#define SBP_SENSOR_STR_MAG_Y        "MY"
+#define SBP_SENSOR_STR_MAG_Z        "MZ"
+#define SBP_SENSOR_STR_BTN          "B"
+#define SBP_SENSOR_STR_BTN_A        "BA"
+#define SBP_SENSOR_STR_BTN_B        "BB"
+#define SBP_SENSOR_STR_BTN_LOGO     "F"
+#define SBP_SENSOR_STR_BTN_PINS     "E"
+#define SBP_SENSOR_STR_BTN_P0       "E0"
+#define SBP_SENSOR_STR_BTN_P1       "E1"
+#define SBP_SENSOR_STR_BTN_P2       "E2"
+#define SBP_SENSOR_STR_TEMP         "T"
+#define SBP_SENSOR_STR_LIGHT        "L"
+#define SBP_SENSOR_STR_SOUND        "S"
+
+/**
+ * @brief The sensor types do not include the subtypes
+ * (e.g. includes "accelerometer" but not "accelerometer x").
+ * This is used for the START command to indicate what data to stream.
+ */
+typedef enum sbp_sensor_type_e {
+    SBP_SENSOR_TYPE_ACC,
+    SBP_SENSOR_TYPE_MAG,
+    SBP_SENSOR_TYPE_BTN,
+    SBP_SENSOR_TYPE_BTN_LOGO,
+    SBP_SENSOR_TYPE_BTN_PINS,
+    SBP_SENSOR_TYPE_TEMP,
+    SBP_SENSOR_TYPE_LIGHT,
+    SBP_SENSOR_TYPE_SOUND,
+    SBP_SENSOR_TYPE_LEN,
+} sbp_sensor_type_t;
+
+const char sbp_sensor_type[SBP_SENSOR_TYPE_LEN] = {
+    ((char *)SBP_SENSOR_STR_ACC)[0],
+    ((char *)SBP_SENSOR_STR_MAG)[0],
+    ((char *)SBP_SENSOR_STR_BTN)[0],
+    ((char *)SBP_SENSOR_STR_BTN_LOGO)[0],
+    ((char *)SBP_SENSOR_STR_BTN_PINS)[0],
+    ((char *)SBP_SENSOR_STR_TEMP)[0],
+    ((char *)SBP_SENSOR_STR_LIGHT)[0],
+    ((char *)SBP_SENSOR_STR_SOUND)[0],
+};
+
+/**
  * @brief Structure to hold a protocol command message.
  * 
- * The line pointer is a null terminated string.
- * The id and value start values are the index inside the line string
- * containing this data.
+ * Only the line pointer is a null terminated string.
+ * The ID and Value pointers are not null terminated, as they are substrings
+ * inside the line string, but their length is provided.
  */
 typedef struct sbp_cmd_s {
     sbp_cmd_type_t type;
     const char* line;
     size_t line_len;
-    size_t id_start;
+    const char*  id;
     size_t id_len;
-    size_t value_start;
+    const char*  value;
     size_t value_len;
 } sbp_cmd_t;
 
 /**
  * @brief Flags to hold which sensors are enabled in the protocol.
+ * This might not be portable to other compilers, as how bitfields are packed
+ * is implementation defined, but it's stable for GCC.
  */
-typedef struct sbp_sensors_s {
-    bool accelerometer : 1;
-    bool magnetometer : 1;
-    bool buttons : 1;
-    bool button_logo : 1;
-    bool button_pins : 1;
-    bool temperature : 1;
-    bool light_level : 1;
-    bool sound_level : 1;
+typedef union {
+    uint8_t raw;
+    struct {
+        // These need to be in the same order as sbp_sensor_type_e
+        bool accelerometer : 1;     // SBP_SENSOR_TYPE_ACC
+        bool magnetometer : 1;      // SBP_SENSOR_TYPE_MAG
+        bool buttons : 1;           // SBP_SENSOR_TYPE_BTN
+        bool button_logo : 1;       // SBP_SENSOR_TYPE_BTN_LOGO
+        bool button_pins : 1;       // SBP_SENSOR_TYPE_BTN_PINS
+        bool temperature : 1;       // SBP_SENSOR_TYPE_TEMP
+        bool light_level : 1;       // SBP_SENSOR_TYPE_LIGHT
+        bool sound_level : 1;       // SBP_SENSOR_TYPE_SOUND
+    };
 } sbp_sensors_t;
-
-/**
- * @brief Structure to hold the state of the protocol.
- */
-typedef struct sbp_state_s {
-    uint8_t radio_group = 0;
-    bool send_periodic = true;
-    sbp_sensors_t sensors = { };
-} sbp_state_t;
 
 /**
  * @brief Structure to hold all the sensor data available in the protocol
@@ -131,6 +179,15 @@ typedef struct sbp_sensor_data_s {
     int light_level = 0;
     int sound_level = 0;
 } sbp_sensor_data_t;
+
+/**
+ * @brief Structure to hold the state of the protocol.
+ */
+typedef struct sbp_state_s {
+    uint8_t radio_group = 0;
+    bool send_periodic = true;
+    sbp_sensors_t sensors = { };
+} sbp_state_t;
 
 
 /**

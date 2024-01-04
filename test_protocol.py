@@ -37,7 +37,7 @@ def print_all_serial_received(ubit_serial):
         serial_line = ubit_serial.readline()
 
 
-def send_command(ubit_serial, command, wait_response=True, timeout=5):
+def send_command(ubit_serial, command, wait_response=True, timeout=5000):
     """
     Send a command to the micro:bit and wait for a response.
 
@@ -116,6 +116,7 @@ def main():
 
     print("Sending radio group command.")
     random_group = random.randint(0, 255)
+    random_group = 42
     sent_radio_group, radio_group_response, periodic_msgs = send_command(ubit_serial, f"RG[{random_group}]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_radio_group}")
     if not radio_group_response:
@@ -130,7 +131,7 @@ def main():
     print("Radio Group command successful.")
 
     print("Sending start command.")
-    sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[A,B,BL]", wait_response=True)
+    sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[EABFMLTS]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_start}")
     if not start_response:
         raise Exception("Start command failed.")
