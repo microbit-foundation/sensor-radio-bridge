@@ -35,7 +35,7 @@ static int intFromCommandValue(const char *value_str, const size_t value_str_len
 
 /**
  * @brief Parse a protocol message as a command.
- * 
+ *
  * @param msg String of the protocol message to parse.
  * @param msg_len The length of the protocol message string
  *                (not including null terminator).

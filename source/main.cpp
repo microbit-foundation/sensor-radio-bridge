@@ -20,18 +20,19 @@ static const uint32_t RADIO_GROUP_ADDR = 0x0007FC00;
 
 static sbp_sensor_data_t sensor_data = { };
 
+/**
+ * @brief Callback for received radio packets.
+ *
+ * @param radio_sensor_data The data received via radio.
+ */
 #if CONFIG_ENABLED(RADIO_RECEIVER)
-static void onRadioData(MicroBitEvent e) {
-    PacketBuffer radio_packet = uBit.radio.datagram.recv();
-    if (radio_packet.length() != 15) {
-        uBit.panic(240);
-    }
-    memcpy((void *)&sensor_data.accelerometer_x, &radio_packet[0], 4);
-    memcpy((void *)&sensor_data.accelerometer_y, &radio_packet[4], 4);
-    memcpy((void *)&sensor_data.accelerometer_z, &radio_packet[8], 4);
-    sensor_data.button_a = (bool)radio_packet[12];
-    sensor_data.button_b = (bool)radio_packet[13];
-    sensor_data.button_logo = (bool)radio_packet[14];
+static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
+    sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
+    sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
+    sensor_data.accelerometer_z = radio_sensor_data->accelerometer_z;
+    sensor_data.button_a = radio_sensor_data->button_a;
+    sensor_data.button_b = radio_sensor_data->button_b;
+    sensor_data.button_logo = radio_sensor_data->button_logo;
 }
 #endif
 
@@ -125,9 +126,7 @@ int main() {
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
     radio_send_main_loop();
 #elif CONFIG_ENABLED(RADIO_RECEIVER)
-    uBit.radio.enable();
-    uBit.radio.setGroup(RADIO_GROUP_DEFAULT);
-    uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, onRadioData);
+    radio_receive_init(radioDataCallback);
 #endif
 
     sbp_init(&protocol_callbacks, &protocol_state);
