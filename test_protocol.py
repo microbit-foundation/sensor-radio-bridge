@@ -37,7 +37,7 @@ def print_all_serial_received(ubit_serial):
         serial_line = ubit_serial.readline()
 
 
-def send_command(ubit_serial, command, wait_response=True, timeout=5000):
+def send_command(ubit_serial, command, wait_response=True, timeout=5):
     """
     Send a command to the micro:bit and wait for a response.
 
@@ -130,8 +130,22 @@ def main():
         raise Exception("Periodic messages received, start command  failed.")
     print("Radio Group command successful.")
 
+    print("Sending periodic message period in milliseconds.")
+    sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[40]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_period}")
+    if not period_response:
+        raise Exception("Set Period command failed.")
+    print(f"\t(DEVICE 🔙) {period_response}")
+    # Parsing the response for the start command
+    response_cmd = period_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "PER[40]":
+        raise Exception("Period command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, period command  failed.")
+    print("Period command successful.")
+
     print("Sending start command.")
-    sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[EABFMLTS]", wait_response=True)
+    sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[PABFMLTS]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_start}")
     if not start_response:
         raise Exception("Start command failed.")

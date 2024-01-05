@@ -8,8 +8,7 @@
 
 MicroBit uBit;
 
-// Configure how many milliseconds between serial messages
-static const int PERIODIC_INTERVAL_MS = 50;
+// Configure how many milliseconds to leave as a buffer for accurate periodic messages
 static const int PERIODIC_BUFFER_MS = 10;
 
 static const int SERIAL_BUFFER_LEN = 128;
@@ -35,7 +34,9 @@ static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
 /**
  * @brief Stores the radio group in flash.
  *
- * @param radio_group The radio group to store, a value from 0 to 255.
+ * @param protocol_state The protocol state with the updated radio group value.
+ *
+ * @return SBP_SUCCESS if the radio group was stored successfully, an error value otherwise.
  */
 int storeRadioGroup(sbp_state_s *protocol_state) {
     // Last 1 KB of flash where we can store the radio group
@@ -61,6 +62,19 @@ int storeRadioGroup(sbp_state_s *protocol_state) {
         }
         protocol_state->radio_group = (uint8_t)*stored_radio_group;
         // uBit.panic(234);
+    }
+    return SBP_SUCCESS;
+}
+
+/**
+ * @brief Check the period time is not too short.
+ * 
+ * @param protocol_state The protocol state with the updated period value.
+ * @return SBP_SUCCESS if the period is valid, SBP_ERROR_CMD_VALUE otherwise.
+ */
+int checkPeriod(sbp_state_s *protocol_state) {
+    if (protocol_state->period_ms < PERIODIC_BUFFER_MS) {
+        return SBP_ERROR_CMD_VALUE;
     }
     return SBP_SUCCESS;
 }
@@ -121,6 +135,7 @@ int main() {
     sbp_state_t protocol_state = { };
     sbp_cmd_callbacks_t protocol_callbacks = { };
     protocol_callbacks.radiogroup = storeRadioGroup;
+    protocol_callbacks.period = checkPeriod;
 
 #if CONFIG_ENABLED(RADIO_SENDER)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
@@ -131,7 +146,7 @@ int main() {
 
     sbp_init(&protocol_callbacks, &protocol_state);
 
-    uint32_t next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
+    uint32_t next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
     while (true) {
         // Read any incoming message & process it until we reached the time reserved for periodic messages
         while ((uBit.systemTime() + PERIODIC_BUFFER_MS) < next_periodic_msg) {
@@ -164,11 +179,11 @@ int main() {
 
             // Now wait without sleeping until ready to send the serial message
             while (uBit.systemTime() < next_periodic_msg);
-            next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
+            next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
             uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
         } else {
             // In this case we don't need to keep a constant periodic interval, just continue
-            next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
+            next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
         }
     }
 }

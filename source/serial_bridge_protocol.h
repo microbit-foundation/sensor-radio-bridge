@@ -42,6 +42,7 @@ const char sbp_msg_type_char[SBP_MSG_TYPE_LEN] = {
 typedef enum sbp_cmd_type_e {
     SBP_CMD_HANDSHAKE,
     SBP_CMD_RADIOGROUP,
+    SBP_CMD_PERIOD,
     SBP_CMD_SWVERSION,
     SBP_CMD_HWVERSION,
     SBP_CMD_START,
@@ -52,6 +53,7 @@ typedef enum sbp_cmd_type_e {
 const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
     "HS",       // SBP_CMD_HANDSHAKE
     "RG",       // SBP_CMD_RADIOGROUP
+    "PER",      // SBP_CMD_PERIOD
     "SWVER",    // SBP_CMD_SWVERSION
     "HWVER",    // SBP_CMD_HWVERSION
     "START",    // SBP_CMD_START
@@ -65,6 +67,7 @@ typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
 typedef struct sbp_cmd_callback_s {
     sbp_cmd_callback_t handshake = NULL;
     sbp_cmd_callback_t radiogroup = NULL;
+    sbp_cmd_callback_t period = NULL;
     sbp_cmd_callback_t swversion = NULL;
     sbp_cmd_callback_t hwversion = NULL;
     sbp_cmd_callback_t start = NULL;
@@ -86,10 +89,10 @@ typedef struct sbp_cmd_callback_s {
 #define SBP_SENSOR_STR_BTN_A        "BA"
 #define SBP_SENSOR_STR_BTN_B        "BB"
 #define SBP_SENSOR_STR_BTN_LOGO     "F"
-#define SBP_SENSOR_STR_BTN_PINS     "E"
-#define SBP_SENSOR_STR_BTN_P0       "E0"
-#define SBP_SENSOR_STR_BTN_P1       "E1"
-#define SBP_SENSOR_STR_BTN_P2       "E2"
+#define SBP_SENSOR_STR_BTN_PINS     "P"
+#define SBP_SENSOR_STR_BTN_P0       "P0"
+#define SBP_SENSOR_STR_BTN_P1       "P1"
+#define SBP_SENSOR_STR_BTN_P2       "P2"
 #define SBP_SENSOR_STR_TEMP         "T"
 #define SBP_SENSOR_STR_LIGHT        "L"
 #define SBP_SENSOR_STR_SOUND        "S"
@@ -145,7 +148,7 @@ typedef struct sbp_cmd_s {
  * is implementation defined, but it's stable for GCC.
  */
 typedef union {
-    uint8_t raw;
+    uint8_t raw = 0;
     struct {
         // These need to be in the same order as sbp_sensor_type_e
         bool accelerometer : 1;     // SBP_SENSOR_TYPE_ACC
@@ -185,7 +188,8 @@ typedef struct sbp_sensor_data_s {
  */
 typedef struct sbp_state_s {
     uint8_t radio_group = 0;
-    bool send_periodic = true;
+    bool send_periodic = false;
+    uint16_t period_ms = 0;
     sbp_sensors_t sensors = { };
 } sbp_state_t;
 

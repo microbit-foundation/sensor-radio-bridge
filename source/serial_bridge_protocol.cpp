@@ -200,13 +200,9 @@ static int sbp_processCommandResponse(
     sbp_state_t *protocol_state,
     char *str_buffer, const size_t str_buffer_len
 ) {
-    int callback_result = SBP_SUCCESS;
     switch (received_cmd->type) {
         case SBP_CMD_HANDSHAKE: {
-            if (cmd_cbk.handshake) {
-                callback_result = cmd_cbk.handshake(protocol_state);
-            }
-            if (callback_result < 0) {
+            if (cmd_cbk.handshake && cmd_cbk.handshake(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
             return sbp_generateResponseStr(received_cmd, SBP_PROTOCOL_VERSION, 1, str_buffer, str_buffer_len);
@@ -219,37 +215,47 @@ static int sbp_processCommandResponse(
             }
             protocol_state->radio_group = radio_group;
 
-            if (cmd_cbk.radiogroup) {
-                callback_result = cmd_cbk.radiogroup(protocol_state);
-            }
-
-            if (callback_result < 0) {
+            if (cmd_cbk.radiogroup && cmd_cbk.radiogroup(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
+
             // Convert protocol_state->radio_group into a string
             char response_radio_group[4] = { 0 };
             size_t group_str_len = snprintf(response_radio_group, 4, "%d", protocol_state->radio_group);
-            if (group_str_len < 1) {
-                return SBP_ERROR_ENCODING;
-            }
+            if (group_str_len < 1) return SBP_ERROR_ENCODING;
+
             return sbp_generateResponseStr(
                     received_cmd, response_radio_group, group_str_len, str_buffer, str_buffer_len);
         }
-        case SBP_CMD_SWVERSION: {
-            if (cmd_cbk.swversion) {
-                callback_result = cmd_cbk.swversion(protocol_state);
+        case SBP_CMD_PERIOD: {
+            int period_ms;
+            int conversion_state = intFromCommandValue(received_cmd->value, received_cmd->value_len, &period_ms);
+            if (conversion_state != SBP_SUCCESS || period_ms < 0 || period_ms > UINT16_MAX) {
+                return SBP_ERROR_CMD_VALUE;
             }
-            if (callback_result < 0) {
+            protocol_state->period_ms = (uint16_t)period_ms;
+
+            if (cmd_cbk.period && cmd_cbk.period(protocol_state) != SBP_SUCCESS) {
+                return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
+            }
+
+            // Convert protocol_state->period_ms into a string
+            char response_period[6] = { 0 };
+            size_t period_str_len = snprintf(response_period, 6, "%d", protocol_state->period_ms);
+            if (period_str_len < 1) return SBP_ERROR_ENCODING;
+
+            return sbp_generateResponseStr(
+                    received_cmd, response_period, period_str_len, str_buffer, str_buffer_len);
+        }
+        case SBP_CMD_SWVERSION: {
+            if (cmd_cbk.swversion && cmd_cbk.swversion(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
             // TODO: Implement this in a way that is not hard coded
             return sbp_generateResponseStr(received_cmd, "0.1.0", 5, str_buffer, str_buffer_len);
         }
         case SBP_CMD_HWVERSION: {
-            if (cmd_cbk.hwversion) {
-                callback_result = cmd_cbk.hwversion(protocol_state);
-            }
-            if (callback_result < 0) {
+            if (cmd_cbk.hwversion && cmd_cbk.hwversion(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
             // TODO: Implement this in a way that is not hard coded
@@ -272,29 +278,22 @@ static int sbp_processCommandResponse(
                 if (!sensor_found) return SBP_ERROR_CMD_VALUE;
             }
             protocol_state->send_periodic = true;
-            if (cmd_cbk.start) {
-                callback_result = cmd_cbk.start(protocol_state);
-            }
-            if (callback_result < 0) {
+            if (cmd_cbk.start && cmd_cbk.start(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         case SBP_CMD_STOP: {
             protocol_state->send_periodic = false;
-            if (cmd_cbk.stop) {
-                callback_result = cmd_cbk.stop(protocol_state);
-            }
-            if (callback_result < 0) {
+            if (cmd_cbk.stop && cmd_cbk.stop(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         default:
-            callback_result =  SBP_ERROR_CMD_TYPE;
-            break;
+            return SBP_ERROR_CMD_TYPE;
     }
-    return callback_result;
+    return SBP_ERROR;
 }
 
 // ----------------------------------------------------------------------------
@@ -312,6 +311,7 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     // Set protocol state defaults
     protocol_state->radio_group = 42;
     protocol_state->send_periodic = false;
+    protocol_state->period_ms = 50;
     protocol_state->sensors.raw = 0;
     protocol_state->sensors.accelerometer = true;
     protocol_state->sensors.buttons = true;
