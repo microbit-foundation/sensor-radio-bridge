@@ -10,7 +10,7 @@
 #define RADIO_RECEIVER 1
 #endif
 
-static const uint8_t RADIO_GROUP_DEFAULT = 42;
+static const uint8_t RADIO_FREQ_DEFAULT = 42;
 
 /**
  * @brief Data sent over radio.
@@ -42,7 +42,7 @@ typedef void (*radio_data_callback_t)(radio_sensor_data_t *sensor_data);
  *
  * @param callback The callback to pass the radio data to.
  */
-void radio_receive_init(radio_data_callback_t callback);
+void radio_receive_init(radio_data_callback_t callback, uint8_t radio_frequency);
 #endif
 
 #if CONFIG_ENABLED(RADIO_SENDER)
@@ -50,5 +50,5 @@ void radio_receive_init(radio_data_callback_t callback);
  * @brief Runs the main loop for a the radio sender, where it just sends
  * sensor data in an infinite loop.
  */
-void radio_send_main_loop();
+void radio_send_main_loop(uint8_t radio_frequency);
 #endif

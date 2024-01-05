@@ -13,6 +13,9 @@ static const int PERIODIC_BUFFER_MS = 10;
 
 static const int SERIAL_BUFFER_LEN = 128;
 
+// Last 1 KB of flash where we can store the radio frequency
+const uint32_t RADIO_FREQ_ADDR = 0x0007FC00;
+
 static sbp_sensor_data_t sensor_data = { };
 
 /**
@@ -32,38 +35,50 @@ static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
 #endif
 
 /**
- * @brief Stores the radio group in flash.
+ * @brief Stores the radio frequency in flash, for permanence after reset or power off.
  *
- * @param protocol_state The protocol state with the updated radio group value.
+ * @param protocol_state The protocol state with the updated radio frequency value.
  *
- * @return SBP_SUCCESS if the radio group was stored successfully, an error value otherwise.
+ * @return SBP_SUCCESS if the radio frequency was stored successfully, an error value otherwise.
  */
-int storeRadioGroup(sbp_state_s *protocol_state) {
-    // Last 1 KB of flash where we can store the radio group
-    // Writes to flash need to be aligned to 4 bytes
-    const uint32_t RADIO_GROUP_ADDR = 0x0007FC00;
-    uint32_t *stored_radio_group = (uint32_t *)RADIO_GROUP_ADDR;
-
-    if (*stored_radio_group == 0xFFFFFFFF) {
-        uint32_t stored_radio_group = protocol_state->radio_group;
+int storeRadioFrequency(sbp_state_s *protocol_state) {
+    uint32_t *stored_radio_freq = (uint32_t *)RADIO_FREQ_ADDR;
+    if (*stored_radio_freq == 0xFFFFFFFF) {
+        uint32_t radio_freq = protocol_state->radio_frequency;
         // TODO: Commented out so that we don't need to constantly reflash during development
         // MicroBitFlash flash;
-        // int success = flash.flash_write(
-        //         (void *)RADIO_GROUP_ADDR, (void *)&stored_radio_group, 4, NULL);
+        // int success = flash.flash_write((void *)RADIO_FREQ_ADDR, (void *)&radio_freq, 4, NULL);
         // if (success != MICROBIT_OK) uBit.panic(230);
-        // if (*stored_radio_group != stored_radio_group) uBit.panic(231);
+        // if (*stored_radio_freq != radio_freq) uBit.panic(231);
 
-        int success = uBit.radio.setGroup(protocol_state->radio_group);
+        int success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
         if (success != MICROBIT_OK) uBit.panic(232);
-    } else if ((uint32_t)protocol_state->radio_group != *stored_radio_group) {
-        // TODO: Right now responds with configured group, but it should probably be an error
-        if (*stored_radio_group > 255) {
+    } else if ((uint32_t)protocol_state->radio_frequency != *stored_radio_freq) {
+        // TODO: Right now responds with stored frequency, but it should probably be an error
+        if (*stored_radio_freq > SBP_CMD_RADIO_FREQ_MAX) {
             uBit.panic(233);
         }
-        protocol_state->radio_group = (uint8_t)*stored_radio_group;
+        protocol_state->radio_frequency = (uint8_t)*stored_radio_freq;
         // uBit.panic(234);
     }
     return SBP_SUCCESS;
+}
+
+/**
+ * @brief Get the Radio Frequency from Non Volatile Memory, or the default
+ * value if not set in NVM.
+ *
+ * @return The radio frequency.
+ */
+uint8_t getRadioFrequency() {
+    uint32_t *stored_radio_freq = (uint32_t *)RADIO_FREQ_ADDR;
+    if (*stored_radio_freq == 0xFFFFFFFF) {
+        return RADIO_FREQ_DEFAULT;
+    } else if (*stored_radio_freq > SBP_CMD_RADIO_FREQ_MAX) {
+        uBit.panic(233);
+    } else {
+        return (uint8_t)*stored_radio_freq;
+    }
 }
 
 /**
@@ -134,17 +149,20 @@ int main() {
 
     sbp_state_t protocol_state = { };
     sbp_cmd_callbacks_t protocol_callbacks = { };
-    protocol_callbacks.radiogroup = storeRadioGroup;
+    protocol_callbacks.radiofrequency = storeRadioFrequency;
     protocol_callbacks.period = checkPeriod;
+
+    sbp_init(&protocol_callbacks, &protocol_state);
+
+    // Set the radio from NVM if saved already, otherwise use the default
+    protocol_state.radio_frequency = getRadioFrequency();
 
 #if CONFIG_ENABLED(RADIO_SENDER)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
-    radio_send_main_loop();
+    radio_send_main_loop(protocol_state.radio_frequency);
 #elif CONFIG_ENABLED(RADIO_RECEIVER)
-    radio_receive_init(radioDataCallback);
+    radio_receive_init(radioDataCallback, protocol_state.radio_frequency);
 #endif
-
-    sbp_init(&protocol_callbacks, &protocol_state);
 
     uint32_t next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
     while (true) {

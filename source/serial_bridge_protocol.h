@@ -41,7 +41,7 @@ const char sbp_msg_type_char[SBP_MSG_TYPE_LEN] = {
  */
 typedef enum sbp_cmd_type_e {
     SBP_CMD_HANDSHAKE,
-    SBP_CMD_RADIOGROUP,
+    SBP_CMD_RADIOFREQ,
     SBP_CMD_PERIOD,
     SBP_CMD_SWVERSION,
     SBP_CMD_HWVERSION,
@@ -52,7 +52,7 @@ typedef enum sbp_cmd_type_e {
 
 const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
     "HS",       // SBP_CMD_HANDSHAKE
-    "RG",       // SBP_CMD_RADIOGROUP
+    "RF",       // SBP_CMD_RADIOFREQ
     "PER",      // SBP_CMD_PERIOD
     "SWVER",    // SBP_CMD_SWVERSION
     "HWVER",    // SBP_CMD_HWVERSION
@@ -60,13 +60,19 @@ const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
     "STOP",     // SBP_CMD_STOP
 };
 
+/** Command value limits */
+#define SBP_CMD_RADIO_FREQ_MIN      (0)
+#define SBP_CMD_RADIO_FREQ_MAX      (83)
+#define SBP_CMD_PERIOD_MIN          (0)
+#define SBP_CMD_PERIOD_MAX          (UINT16_MAX)
+
 /**
  * @brief Structure of function pointers to use as callbacks for each command.
  */
 typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
 typedef struct sbp_cmd_callback_s {
     sbp_cmd_callback_t handshake = NULL;
-    sbp_cmd_callback_t radiogroup = NULL;
+    sbp_cmd_callback_t radiofrequency = NULL;
     sbp_cmd_callback_t period = NULL;
     sbp_cmd_callback_t swversion = NULL;
     sbp_cmd_callback_t hwversion = NULL;
@@ -187,7 +193,7 @@ typedef struct sbp_sensor_data_s {
  * @brief Structure to hold the state of the protocol.
  */
 typedef struct sbp_state_s {
-    uint8_t radio_group = 0;
+    uint8_t radio_frequency = 0;
     bool send_periodic = false;
     uint16_t period_ms = 0;
     sbp_sensors_t sensors = { };

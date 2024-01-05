@@ -114,21 +114,21 @@ def main():
         raise Exception("Periodic messages received, handshake failed.")
     print("Handshake successful.")
 
-    print("Sending radio group command.")
-    random_group = random.randint(0, 255)
-    random_group = 42
-    sent_radio_group, radio_group_response, periodic_msgs = send_command(ubit_serial, f"RG[{random_group}]", wait_response=True)
-    print(f"\t(SENT   ➡️) {sent_radio_group}")
-    if not radio_group_response:
-        raise Exception("Set Radio Group command failed.")
-    print(f"\t(DEVICE 🔙) {radio_group_response}")
+    print("Sending radio frequency command.")
+    random_freq = random.randint(0, 255)
+    random_freq = 42
+    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{random_freq}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_radio_freq}")
+    if not radio_freq_response:
+        raise Exception("Set Radio Frequency command failed.")
+    print(f"\t(DEVICE 🔙) {radio_freq_response}")
     # Parsing the response for the start command
-    response_cmd = radio_group_response.decode("ascii").split("]", 1)[1]
-    if response_cmd != f"RG[{random_group}]":
-        raise Exception("Radio Group command  failed.")
+    response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"RF[{random_freq}]":
+        raise Exception("Radio Frequency command  failed.")
     if len(periodic_msgs) != 0:
         raise Exception("Periodic messages received, start command  failed.")
-    print("Radio Group command successful.")
+    print("Radio Frequency command successful.")
 
     print("Sending periodic message period in milliseconds.")
     sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[40]", wait_response=True)

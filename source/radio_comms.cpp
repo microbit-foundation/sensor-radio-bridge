@@ -61,18 +61,20 @@ static void send_radio_data() {
 // ----------------------------------------------------------------------------
 
 #if CONFIG_ENABLED(RADIO_RECEIVER)
-void radio_receive_init(radio_data_callback_t callback) {
+void radio_receive_init(radio_data_callback_t callback, uint8_t radio_frequency) {
     data_callback = callback;
     uBit.radio.enable();
-    uBit.radio.setGroup(RADIO_GROUP_DEFAULT);
+    uBit.radio.setTransmitPower(MICROBIT_RADIO_POWER_LEVELS - 1);
+    uBit.radio.setFrequencyBand(radio_frequency);
     uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, onRadioData);
 }
 #endif
 
 #if CONFIG_ENABLED(RADIO_SENDER)
-void radio_send_main_loop() {
+void radio_send_main_loop(uint8_t radio_frequency) {
     uBit.radio.enable();
-    uBit.radio.setGroup(RADIO_GROUP_DEFAULT);
+    uBit.radio.setTransmitPower(MICROBIT_RADIO_POWER_LEVELS - 1);
+    uBit.radio.setFrequencyBand(radio_frequency);
 
     while (true) {
         send_radio_data();
