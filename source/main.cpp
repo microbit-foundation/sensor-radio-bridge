@@ -10,7 +10,7 @@ MicroBit uBit;
 
 // Configure how many milliseconds between serial messages
 static const int PERIODIC_INTERVAL_MS = 50;
-static const int CMD_RESPONSE_TIME = 10;
+static const int PERIODIC_BUFFER_MS = 10;
 
 static const int SERIAL_BUFFER_LEN = 128;
 
@@ -131,16 +131,10 @@ int main() {
 
     sbp_init(&protocol_callbacks, &protocol_state);
 
-    // The first message should always be the handshake
-    ManagedString handshake_cmd = uBit.serial.readUntil(SBP_MSG_SEPARATOR, SYNC_SLEEP);
-    int hs_response_len = sbp_processHandshake(handshake_cmd, serial_data, serial_data_len);
-    if (hs_response_len < SBP_SUCCESS) uBit.panic(200);
-    uBit.serial.send((uint8_t *)serial_data, hs_response_len, SYNC_SLEEP);
-
-    // Now process any other message while sending periodic messages (if enabled)
     uint32_t next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
     while (true) {
-        while ((uBit.systemTime() + CMD_RESPONSE_TIME) < next_periodic_msg) {
+        // Read any incoming message & process it until we reached the time reserved for periodic messages
+        while ((uBit.systemTime() + PERIODIC_BUFFER_MS) < next_periodic_msg) {
             ManagedString cmd = uBit.serial.readUntil(SBP_MSG_SEPARATOR, ASYNC);
             if (cmd.length() > 0) {
                 // Read any incoming message & process it
@@ -152,10 +146,9 @@ int main() {
 
                 uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
             }
-            // Sleep if there is still plenty of time before the next periodic message
-            if (!uBit.serial.isReadable() &&
-                    ((uBit.systemTime() + (CMD_RESPONSE_TIME * 2)) < next_periodic_msg)) {
-                uBit.sleep(1);
+            // Sleep if there is no buffered message, and enough time before the periodic message
+            if (!uBit.serial.isReadable() && ((uBit.systemTime() + PERIODIC_BUFFER_MS) < next_periodic_msg)) {
+                uBit.sleep(1);  // This might take up to 4ms, as that's the CODAL ticker resolution
             }
         }
 
@@ -169,13 +162,12 @@ int main() {
             // For development, uncomment to check available free time
             // uBit.serial.printf("t[%d]", next_periodic_msg - uBit.systemTime());
 
-            // Now wait until ready to send the next serial message
+            // Now wait without sleeping until ready to send the serial message
             while (uBit.systemTime() < next_periodic_msg);
             next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
             uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
-            // uBit.serial.printf("t[%d]\n", next_periodic_msg - uBit.systemTime());
         } else {
-            while (uBit.systemTime() < next_periodic_msg);
+            // In this case we don't need to keep a constant periodic interval, just continue
             next_periodic_msg = uBit.systemTime() + PERIODIC_INTERVAL_MS;
         }
     }
