@@ -4,41 +4,38 @@
 /**
  * @brief Stores the callback for the received radio packets.
  */
-static radio_data_callback_t data_callback = NULL;
+static radio_data_callback_t radiobridge_data_callback = NULL;
+
 
 // ----------------------------------------------------------------------------
-// PRIVATE FUNCTIONS ----------------------------------------------------------
+// SENSOR DATA TX & RX FUNCTIONS ----------------------------------------------
 // ----------------------------------------------------------------------------
-
 #if CONFIG_ENABLED(RADIO_RECEIVER)
 /**
  * @brief Event handler for received radio packets.
  *
  * @param e Message bus event information, not used.
  */
-static void onRadioData(MicroBitEvent e) {
-    if (data_callback == NULL) {
-        return;
-    }
+static void radiobridge_onRadioData(MicroBitEvent e) {
+    if (radiobridge_data_callback == NULL) return;
 
     radio_sensor_data_t data;
     PacketBuffer radio_packet = uBit.radio.datagram.recv();
     if (radio_packet.length() != sizeof(data)) {
-        // TODO: We should probably ignore the packet instead of panicking
-        //       or issue an error to the callback
+        // TODO: Maybe ignore the packet instead? or issue error to callback?
         uBit.panic(240);
     }
     memcpy(&data, radio_packet.getBytes(), sizeof(data));
 
-    data_callback(&data);
+    radiobridge_data_callback(&data);
 }
 #endif
 
 #if CONFIG_ENABLED(RADIO_SENDER)
 /**
- * @brief Sends the radio data.
+ * @brief Sends the periodic radio data.
  */
-static void send_radio_data() {
+static void radiotx_sendPeriodicData() {
     radio_sensor_data_t data = {
         .mb_id = microbit_serial_number(),
         .accelerometer_x = uBit.accelerometer.getX(),
@@ -56,28 +53,32 @@ static void send_radio_data() {
 }
 #endif
 
-// ----------------------------------------------------------------------------
-// PUBLIC FUNCTIONS -----------------------------------------------------------
-// ----------------------------------------------------------------------------
 
+// ----------------------------------------------------------------------------
+// BRIDGE RECEIVER FUNCTIONS --------------------------------------------------
+// ----------------------------------------------------------------------------
 #if CONFIG_ENABLED(RADIO_RECEIVER)
-void radio_receive_init(radio_data_callback_t callback, uint8_t radio_frequency) {
-    data_callback = callback;
+void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency) {
+    radiobridge_data_callback = callback;
     uBit.radio.enable();
     uBit.radio.setTransmitPower(MICROBIT_RADIO_POWER_LEVELS - 1);
     uBit.radio.setFrequencyBand(radio_frequency);
-    uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, onRadioData);
+    uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, radiobridge_onRadioData);
 }
 #endif
 
+
+// ----------------------------------------------------------------------------
+// SENDER FUNCTIONS -----------------------------------------------------------
+// ----------------------------------------------------------------------------
 #if CONFIG_ENABLED(RADIO_SENDER)
-void radio_send_main_loop(uint8_t radio_frequency) {
+void radiotx_mainLoop(uint8_t radio_frequency) {
     uBit.radio.enable();
     uBit.radio.setTransmitPower(MICROBIT_RADIO_POWER_LEVELS - 1);
     uBit.radio.setFrequencyBand(radio_frequency);
 
     while (true) {
-        send_radio_data();
+        radiotx_sendPeriodicData();
         uBit.sleep(40);
     }
 }

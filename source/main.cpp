@@ -159,9 +159,9 @@ int main() {
 
 #if CONFIG_ENABLED(RADIO_SENDER)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
-    radio_send_main_loop(protocol_state.radio_frequency);
+    radiotx_mainLoop(protocol_state.radio_frequency);
 #elif CONFIG_ENABLED(RADIO_RECEIVER)
-    radio_receive_init(radioDataCallback, protocol_state.radio_frequency);
+    radiobridge_init(radioDataCallback, protocol_state.radio_frequency);
 #endif
 
     uint32_t next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
