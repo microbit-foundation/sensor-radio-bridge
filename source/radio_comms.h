@@ -34,6 +34,28 @@ typedef __PACKED_STRUCT radio_sensor_data_s {
  */
 typedef void (*radio_data_callback_t)(radio_sensor_data_t *sensor_data);
 
+/**
+ * @brief List of commands the bridge can send to the radio senders.
+ */
+typedef enum {
+    RADIO_CMD_FLASH = 0,
+    RADIO_CMD_LEN,
+} radio_cmd_type_t;
+
+/**
+ * @brief Types for callbacks to execute when receiving cmds from the bridge.
+ */
+typedef void (*radio_cmd_func_t)(uint32_t value);
+
+/**
+ * @brief Structure of the command data from bridge to radio sender.
+ */
+typedef __PACKED_STRUCT radio_cmd_s {
+    uint32_t mb_id;
+    uint32_t cmd;
+    uint32_t value;
+} radio_cmd_t;
+
 
 #if CONFIG_ENABLED(RADIO_RECEIVER)
 /**
@@ -43,6 +65,15 @@ typedef void (*radio_data_callback_t)(radio_sensor_data_t *sensor_data);
  * @param callback The callback to pass the radio data to.
  */
 void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency);
+
+/**
+ * @brief Sends a command to the radio sender.
+ *
+ * @param mb_id The microbit id of the radio sender to send the command to.
+ * @param cmd The command to send.
+ * @param value The value to send with the command.
+ */
+void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, uint32_t value = 0);
 #endif
 
 #if CONFIG_ENABLED(RADIO_SENDER)
