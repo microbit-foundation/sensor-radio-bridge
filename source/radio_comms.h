@@ -7,7 +7,7 @@
 #define RADIO_SENDER 0
 
 #if CONFIG_DISABLED(RADIO_SENDER)
-#define RADIO_BRIDGE 0
+#define RADIO_RECEIVER 0
 #endif
 
 static const uint8_t RADIO_FREQ_DEFAULT = 42;

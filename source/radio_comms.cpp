@@ -74,7 +74,7 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, uint32_t valu
         .cmd = cmd,
         .value = value,
     };
-    
+
     uint8_t radio_data[sizeof(radio_cmd)];
     memcpy(radio_data, &radio_cmd, sizeof(radio_cmd));
 

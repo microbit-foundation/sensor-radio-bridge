@@ -16,7 +16,77 @@ static const int SERIAL_BUFFER_LEN = 128;
 // Last 1 KB of flash where we can store the radio frequency
 const uint32_t RADIO_FREQ_ADDR = 0x0007FC00;
 
+// Storing a list of active micro:bit IDs sending radio data
+static const size_t MB_IDS_LEN = 32;
+static const size_t MB_IDS_ID = 0;
+static const size_t MB_IDS_TIME = 1;
+static uint32_t mb_ids[MB_IDS_LEN][2] = { };
+static size_t active_mb_id_i = MB_IDS_LEN;
+#define GET_ACTIVE_MB_ID()      mb_ids[active_mb_id_i][MB_IDS_ID]
+
 static sbp_sensor_data_t sensor_data = { };
+
+
+/**
+ * @brief Updates the list of micro:bit IDs that have been seen recently.
+ * 
+ * @param mb_id The micro:bit ID to update.
+ */
+static void updateMbIds(uint32_t mb_id) {
+    static const uint32_t TIME_TO_FORGET_MS = 2000;
+
+    uint32_t now = uBit.systemTime();
+
+    // If we don't have an active micro:bit, add to array and set as active
+    if (active_mb_id_i == MB_IDS_LEN) {
+        mb_ids[0][MB_IDS_ID] = mb_id;
+        mb_ids[0][MB_IDS_TIME] = now;
+        active_mb_id_i = 0;
+        return;
+    }
+
+    bool found_mb_id = false;
+    size_t oldest_inactive_mb_id_time = 0xFFFFFFFF;
+    size_t oldest_inactive_mb_id_index = 0;
+    for (size_t i = 0; i < MB_IDS_LEN; i++) {
+        if (mb_ids[i][MB_IDS_ID] == mb_id) {
+            mb_ids[i][MB_IDS_TIME] = now;
+            found_mb_id = true;
+        } else {
+            if (mb_ids[i][MB_IDS_TIME] < (now - TIME_TO_FORGET_MS) && mb_ids[i][MB_IDS_ID] != GET_ACTIVE_MB_ID()) {
+                // It's been too long since this inactive micro:bit was heard, forget it
+                mb_ids[i][MB_IDS_ID] = 0;
+                mb_ids[i][MB_IDS_TIME] = 0;
+            }
+            if (mb_ids[i][MB_IDS_TIME] < oldest_inactive_mb_id_time && mb_ids[i][MB_IDS_ID] != GET_ACTIVE_MB_ID()) {
+                oldest_inactive_mb_id_index = i;
+                oldest_inactive_mb_id_time = mb_ids[i][1];
+            }
+        }
+    }
+    if (!found_mb_id) {
+        mb_ids[oldest_inactive_mb_id_index][MB_IDS_ID] = mb_id;
+        mb_ids[oldest_inactive_mb_id_index][MB_IDS_TIME] = now;
+    }
+}
+
+/**
+ * @brief Switches the active micro:bit to the next one active in the list.
+ */
+void switchNextActiveMicrobit() {
+#if CONFIG_ENABLED(RADIO_RECEIVER)
+    // Nothing to do if there is no active micro:bit
+    if (active_mb_id_i == MB_IDS_LEN) return;
+
+    // Rotate the active micro:bit ID to the next one in the mb_ids array that has a value
+    size_t next_active_mb_id_i = active_mb_id_i;
+    do {
+        next_active_mb_id_i = (next_active_mb_id_i + 1) % MB_IDS_LEN;
+    } while (mb_ids[next_active_mb_id_i][MB_IDS_ID] == 0);
+    active_mb_id_i = next_active_mb_id_i;
+    radiobridge_sendCommand(GET_ACTIVE_MB_ID(), RADIO_CMD_FLASH);
+#endif
+}
 
 /**
  * @brief Callback for received radio packets.
@@ -25,12 +95,15 @@ static sbp_sensor_data_t sensor_data = { };
  */
 #if CONFIG_ENABLED(RADIO_BRIDGE)
 static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
-    sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
-    sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
-    sensor_data.accelerometer_z = radio_sensor_data->accelerometer_z;
-    sensor_data.button_a = radio_sensor_data->button_a;
-    sensor_data.button_b = radio_sensor_data->button_b;
-    sensor_data.button_logo = radio_sensor_data->button_logo;
+    if (radio_sensor_data->mb_id == GET_ACTIVE_MB_ID()) {
+        sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
+        sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
+        sensor_data.accelerometer_z = radio_sensor_data->accelerometer_z;
+        sensor_data.button_a = radio_sensor_data->button_a;
+        sensor_data.button_b = radio_sensor_data->button_b;
+        sensor_data.button_logo = radio_sensor_data->button_logo;
+    }
+    updateMbIds(radio_sensor_data->mb_id);
 }
 #endif
 
@@ -183,6 +256,10 @@ int main() {
             if (!uBit.serial.isReadable() && ((uBit.systemTime() + PERIODIC_BUFFER_MS) < next_periodic_msg)) {
                 uBit.sleep(1);  // This might take up to 4ms, as that's the CODAL ticker resolution
             }
+        }
+
+        if (uBit.buttonA.isPressed()) {
+            switchNextActiveMicrobit();
         }
 
         // If periodic messages are enabled, send them
