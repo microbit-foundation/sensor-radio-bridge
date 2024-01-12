@@ -322,7 +322,7 @@ int sbp_sensorDataPeriodicStr(
     char *str_buffer, const int str_buffer_len
 ) {
     int serial_data_length = 0;
-    static u_int32_t packet_id = 0;
+    static uint32_t packet_id = 0;
 
     int cx = snprintf(
         str_buffer + serial_data_length,
