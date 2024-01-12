@@ -12,7 +12,7 @@ static radio_cmd_func_t radiotx_cmd_functions[RADIO_CMD_LEN] = { };
 // ----------------------------------------------------------------------------
 // SENSOR DATA TX & RX FUNCTIONS ----------------------------------------------
 // ----------------------------------------------------------------------------
-#if CONFIG_ENABLED(RADIO_RECEIVER)
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 /**
  * @brief Event handler for received radio packets.
  *
@@ -59,7 +59,7 @@ static void radiotx_sendPeriodicData() {
 // ----------------------------------------------------------------------------
 // BRIDGE RECEIVER FUNCTIONS --------------------------------------------------
 // ----------------------------------------------------------------------------
-#if CONFIG_ENABLED(RADIO_RECEIVER)
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency) {
     radiobridge_data_callback = callback;
     uBit.radio.enable();

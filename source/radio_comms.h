@@ -7,7 +7,7 @@
 #define RADIO_SENDER 0
 
 #if CONFIG_DISABLED(RADIO_SENDER)
-#define RADIO_RECEIVER 0
+#define RADIO_BRIDGE 0
 #endif
 
 static const uint8_t RADIO_FREQ_DEFAULT = 42;
@@ -57,7 +57,7 @@ typedef __PACKED_STRUCT radio_cmd_s {
 } radio_cmd_t;
 
 
-#if CONFIG_ENABLED(RADIO_RECEIVER)
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 /**
  * @brief Initialises the radio receiver, with each radio packet being passed
  * to the callback.

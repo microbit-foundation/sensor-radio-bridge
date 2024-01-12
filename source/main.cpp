@@ -23,7 +23,7 @@ static sbp_sensor_data_t sensor_data = { };
  *
  * @param radio_sensor_data The data received via radio.
  */
-#if CONFIG_ENABLED(RADIO_RECEIVER)
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
     sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
     sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
@@ -102,7 +102,7 @@ int checkPeriod(sbp_state_s *protocol_state) {
  * @param sensor_data The sensor data structure to update.
  */
 void updateSensorData(const sbp_sensors_t sensor_config, sbp_sensor_data_t *sensor_data) {
-#if CONFIG_DISABLED(RADIO_RECEIVER)
+#if CONFIG_DISABLED(RADIO_BRIDGE)
     if (sensor_config.accelerometer) {
         sensor_data->accelerometer_x = uBit.accelerometer.getX();
         sensor_data->accelerometer_y = uBit.accelerometer.getY();
@@ -160,7 +160,7 @@ int main() {
 #if CONFIG_ENABLED(RADIO_SENDER)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
     radiotx_mainLoop(protocol_state.radio_frequency);
-#elif CONFIG_ENABLED(RADIO_RECEIVER)
+#elif CONFIG_ENABLED(RADIO_BRIDGE)
     radiobridge_init(radioDataCallback, protocol_state.radio_frequency);
 #endif
 
