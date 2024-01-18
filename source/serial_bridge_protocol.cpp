@@ -311,7 +311,7 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     // Set protocol state defaults
     protocol_state->radio_frequency = 0;
     protocol_state->send_periodic = false;
-    protocol_state->period_ms = 50;
+    protocol_state->period_ms = 20;
     protocol_state->sensors.raw = 0;
     protocol_state->sensors.accelerometer = true;
     protocol_state->sensors.buttons = true;

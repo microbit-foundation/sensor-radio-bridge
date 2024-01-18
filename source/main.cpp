@@ -9,7 +9,7 @@
 MicroBit uBit;
 
 // Configure how many milliseconds to leave as a buffer for accurate periodic messages
-static const int PERIODIC_BUFFER_MS = 10;
+static const int PERIODIC_BUFFER_MS = 9;
 
 static const int SERIAL_BUFFER_LEN = 128;
 
@@ -32,6 +32,7 @@ static sbp_sensor_data_t sensor_data = { };
  * 
  * @param mb_id The micro:bit ID to update.
  */
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 static void updateMbIds(uint32_t mb_id) {
     static const uint32_t TIME_TO_FORGET_MS = 2000;
 
@@ -69,22 +70,32 @@ static void updateMbIds(uint32_t mb_id) {
         mb_ids[oldest_inactive_mb_id_index][MB_IDS_TIME] = now;
     }
 }
+#endif
 
 /**
  * @brief Switches the active micro:bit to the next one active in the list.
  */
 void switchNextActiveMicrobit() {
-#if CONFIG_ENABLED(RADIO_RECEIVER)
+#if CONFIG_ENABLED(RADIO_BRIDGE)
+    // Debounce to only allow switching once per second
+    static uint32_t last_switch_time = 0;
+    if (uBit.systemTime() < (last_switch_time + 1000)) return;
+    last_switch_time = uBit.systemTime();
+
     // Nothing to do if there is no active micro:bit
     if (active_mb_id_i == MB_IDS_LEN) return;
+    // Or if the active micro:bit somehow does not have an ID assigned
+    // TODO: This is an error condition, we should do something to recover
+    if (mb_ids[active_mb_id_i][MB_IDS_ID] == 0) return;
 
     // Rotate the active micro:bit ID to the next one in the mb_ids array that has a value
+    // If there isn't any other active micro:bits, then the current active will be picked again
     size_t next_active_mb_id_i = active_mb_id_i;
     do {
         next_active_mb_id_i = (next_active_mb_id_i + 1) % MB_IDS_LEN;
     } while (mb_ids[next_active_mb_id_i][MB_IDS_ID] == 0);
     active_mb_id_i = next_active_mb_id_i;
-    radiobridge_sendCommand(GET_ACTIVE_MB_ID(), RADIO_CMD_FLASH);
+    radiobridge_sendCommand(GET_ACTIVE_MB_ID(), RADIO_CMD_BLINK);
 #endif
 }
 
@@ -94,8 +105,10 @@ void switchNextActiveMicrobit() {
  * @param radio_sensor_data The data received via radio.
  */
 #if CONFIG_ENABLED(RADIO_BRIDGE)
-static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
-    if (radio_sensor_data->mb_id == GET_ACTIVE_MB_ID()) {
+static void radioDataCallback(radio_packet_t *radio_packet) {
+    if (radio_packet->packet_type != RADIO_PKT_SENSOR_DATA) return;
+    if (radio_packet->mb_id == GET_ACTIVE_MB_ID()) {
+        radio_sensor_data_t *radio_sensor_data = &radio_packet->sensor_data;
         sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
         sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
         sensor_data.accelerometer_z = radio_sensor_data->accelerometer_z;
@@ -103,7 +116,7 @@ static void radioDataCallback(radio_sensor_data_t *radio_sensor_data) {
         sensor_data.button_b = radio_sensor_data->button_b;
         sensor_data.button_logo = radio_sensor_data->button_logo;
     }
-    updateMbIds(radio_sensor_data->mb_id);
+    updateMbIds(radio_packet->mb_id);
 }
 #endif
 
@@ -149,6 +162,7 @@ uint8_t getRadioFrequency() {
         return RADIO_FREQ_DEFAULT;
     } else if (*stored_radio_freq > SBP_CMD_RADIO_FREQ_MAX) {
         uBit.panic(233);
+        return 0;
     } else {
         return (uint8_t)*stored_radio_freq;
     }
