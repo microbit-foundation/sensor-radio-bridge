@@ -474,18 +474,3 @@ int sbp_processCommand(const ManagedString& msg, sbp_state_t *protocol_state, ch
     }
     return sbp_processCommandResponse(&received_cmd, protocol_state, str_buffer, str_buffer_len);
 }
-
-int sbp_processHandshake(const ManagedString& msg, char *str_buffer, const size_t str_buffer_len) {
-    sbp_cmd_t received_cmd = { };
-    const char *msg_str = msg.toCharArray();
-    const size_t msg_len = msg.length();
-
-    int result = sbp_parseCommand(msg_str, msg_len, &received_cmd);
-    if (result != SBP_SUCCESS) {
-        return result;
-    }
-    if (received_cmd.type != SBP_CMD_HANDSHAKE) {
-        return SBP_ERROR_CMD_TYPE;
-    }
-    return sbp_generateResponseStr(&received_cmd, SBP_PROTOCOL_VERSION, 1, str_buffer, str_buffer_len);
-}

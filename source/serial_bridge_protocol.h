@@ -227,18 +227,6 @@ int sbp_sensorDataPeriodicStr(const sbp_sensors_t enabled_data,
                               int str_buffer_len);
 
 /**
- * @brief Processes a handshake message and prepare the response to send back.
- *
- * @param msg Pointer to the message to process.
- * @param msg_len Length of the message to process.
- * @param str_buffer Buffer to store the response.
- * @param str_buffer_len Length of the buffer to store the response.
- * @return int The number of characters written to the buffer, excluding the
- *        null terminator, or a negative number if an error occurred.
- */
-int sbp_processHandshake(const ManagedString& msg, char *str_buffer, const size_t str_buffer_len);
-
-/**
  * @brief Processes a command message, identifies it, and prepares the
  * response to send back.
  *
