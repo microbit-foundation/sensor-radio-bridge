@@ -3,6 +3,13 @@
 // TODO: Should only include ManagedString.h, but that doesn't compile
 #include "MicroBit.h"
 
+#define SBP_PROTOCOL_VERSION        "1"
+
+/** Default protocol state values */
+#define SBP_DEFAULT_RADIO_FREQ      42
+#define SBP_DEFAULT_SEND_PERIODIC   false
+#define SBP_DEFAULT_PERIOD_MS       20
+#define SBP_DEFAULT_SENSORS         0
 
 /** Error codes */
 #define SBP_SUCCESS                 (0)
@@ -15,8 +22,7 @@
 #define SBP_ERROR_CMD_VALUE         (-7)
 
 #define SBP_MSG_SEPARATOR           "\n"
-
-#define SBP_PROTOCOL_VERSION        "1"
+#define SBP_MSG_SEPARATOR_LEN       (sizeof(SBP_MSG_SEPARATOR) - 1)
 
 typedef struct sbp_state_s sbp_state_t;
 

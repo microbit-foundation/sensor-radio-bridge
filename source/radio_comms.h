@@ -10,8 +10,6 @@
 #define RADIO_BRIDGE 0
 #endif
 
-static const uint8_t RADIO_FREQ_DEFAULT = 42;
-
 /**
  * @brief List of radio packet types
  */

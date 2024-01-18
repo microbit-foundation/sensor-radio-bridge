@@ -140,8 +140,8 @@ static int sbp_generateResponseStr(
     size_t buffer_i = 0;
     size_t cmd_type_length = strlen(sbp_cmd_type_str[cmd->type]);
 
-    // 14 characters from: `R[12345678][]\n`
-    if (str_buffer_len < (15 + cmd_type_length + value_len + strlen(SBP_MSG_SEPARATOR))) {
+    // 14 characters from: `R[12345678][]` + null terminator
+    if (str_buffer_len < (14 + cmd_type_length + value_len + SBP_MSG_SEPARATOR_LEN)) {
         return SBP_ERROR_LEN;
     }
 
@@ -168,7 +168,7 @@ static int sbp_generateResponseStr(
     str_buffer[buffer_i++] = ']';
 
     // Ensure the string ends with the end of message separator
-    for (size_t i = 0; i < strlen(SBP_MSG_SEPARATOR); i++) {
+    for (size_t i = 0; i < SBP_MSG_SEPARATOR_LEN; i++) {
         str_buffer[buffer_i++] = SBP_MSG_SEPARATOR[i];
     }
 
@@ -309,12 +309,10 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     cmd_cbk = *cmd_callbacks;
 
     // Set protocol state defaults
-    protocol_state->radio_frequency = 0;
-    protocol_state->send_periodic = false;
-    protocol_state->period_ms = 20;
-    protocol_state->sensors.raw = 0;
-    protocol_state->sensors.accelerometer = true;
-    protocol_state->sensors.buttons = true;
+    protocol_state->radio_frequency = SBP_DEFAULT_RADIO_FREQ;
+    protocol_state->send_periodic = SBP_DEFAULT_SEND_PERIODIC;
+    protocol_state->period_ms = SBP_DEFAULT_PERIOD_MS;
+    protocol_state->sensors.raw = SBP_DEFAULT_SENSORS;
 }
 
 int sbp_sensorDataPeriodicStr(
@@ -448,15 +446,17 @@ int sbp_sensorDataPeriodicStr(
         }
     }
 
-    // Ensure the string ends with a carriage return and new line
-    if ((str_buffer_len - serial_data_length) >= 2) {
+    // Ensure the string ends with the message separator and a null terminator
+    if ((str_buffer_len - serial_data_length) >= (SBP_MSG_SEPARATOR_LEN + 1)) {
         serial_data_length += snprintf(
-            str_buffer + serial_data_length, 2, SBP_MSG_SEPARATOR
+            str_buffer + serial_data_length, SBP_MSG_SEPARATOR_LEN + 1, SBP_MSG_SEPARATOR
         );
     } else {
-        serial_data_length += snprintf(
-            str_buffer + (str_buffer_len - 2), 2, SBP_MSG_SEPARATOR
-        );
+        const size_t first_char_index = str_buffer_len - (SBP_MSG_SEPARATOR_LEN + 1);
+        for (size_t i = 0; i < SBP_MSG_SEPARATOR_LEN; i++) {
+            str_buffer[first_char_index + i] = SBP_MSG_SEPARATOR[i];
+        }
+        str_buffer[str_buffer_len - 1] = '\0';
         return SBP_ERROR_LEN;
     }
 

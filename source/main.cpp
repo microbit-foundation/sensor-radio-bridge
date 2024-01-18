@@ -159,9 +159,9 @@ int storeRadioFrequency(sbp_state_s *protocol_state) {
 uint8_t getRadioFrequency() {
     uint32_t *stored_radio_freq = (uint32_t *)RADIO_FREQ_ADDR;
     if (*stored_radio_freq == 0xFFFFFFFF) {
-        return RADIO_FREQ_DEFAULT;
+        return SBP_DEFAULT_RADIO_FREQ;
     } else if (*stored_radio_freq > SBP_CMD_RADIO_FREQ_MAX) {
-        uBit.panic(233);
+        uBit.panic(234);
         return 0;
     } else {
         return (uint8_t)*stored_radio_freq;
