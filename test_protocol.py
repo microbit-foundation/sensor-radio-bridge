@@ -37,6 +37,7 @@ def print_all_serial_received(ubit_serial):
         serial_line = ubit_serial.readline()
 
 
+
 def send_command(ubit_serial, command, wait_response=True, timeout=5):
     """
     Send a command to the micro:bit and wait for a response.
@@ -52,8 +53,12 @@ def send_command(ubit_serial, command, wait_response=True, timeout=5):
         periodic messages received while waiting for the response.
         All without the new line.
     """
-    # Create a 32 bit long random UUID for the command and the response
-    uuid_hex = uuid.uuid4().hex[:8].upper()
+    # Create a random UUID for the command and the response,
+    # randomise the size to be from one byte to 4 bytes
+    if "id_size" not in send_command.__dict__: send_command.id_size = 0
+    send_command.id_size = send_command.id_size + 1 if send_command.id_size < 8 else 1
+    uuid_hex = uuid.uuid4().hex[:send_command.id_size].upper()
+
     cmd = bytes(f"C[{uuid_hex}]{command}\n", "ascii")
     expected_response_start = bytes(f"R[{uuid_hex}]", "ascii")
 
@@ -131,14 +136,14 @@ def main():
     print("Radio Frequency command successful.")
 
     print("Sending periodic message period in milliseconds.")
-    sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[40]", wait_response=True)
+    sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[20]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_period}")
     if not period_response:
         raise Exception("Set Period command failed.")
     print(f"\t(DEVICE 🔙) {period_response}")
     # Parsing the response for the start command
     response_cmd = period_response.decode("ascii").split("]", 1)[1]
-    if response_cmd != "PER[40]":
+    if response_cmd != "PER[20]":
         raise Exception("Period command  failed.")
     if len(periodic_msgs) != 0:
         raise Exception("Periodic messages received, period command  failed.")

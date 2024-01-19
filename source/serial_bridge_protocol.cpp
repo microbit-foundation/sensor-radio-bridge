@@ -46,7 +46,8 @@ static int sbp_parseCommand(const char *msg, const size_t msg_len, sbp_cmd_t *cm
     const char *msg_start = msg;
     sbp_cmd_type_t cmd_type = SBP_CMD_TYPE_LEN;
     size_t id_start = 0;
-    size_t id_len = 8;
+    const size_t id_len_max = 8;
+    size_t id_len = 0;
     size_t value_start = 0;
     size_t value_len = 0;
 
@@ -59,17 +60,19 @@ static int sbp_parseCommand(const char *msg, const size_t msg_len, sbp_cmd_t *cm
         return SBP_ERROR_PROTOCOL_FORMAT;
     }
 
-    // The next 8 characters should be the command ID with a valid hex number
-    // and end with a ']'
+    // The characters until ']' (max 8 chars) should be the command ID with a valid hex number
     id_start = msg - msg_start;
-    for (size_t i = 0; i < id_len; i++, msg++) {
+    for (id_len = 0; id_len < id_len_max; id_len++, msg++) {
+        if (*msg == ']') {
+            break;
+        }
         if (!(*msg >= '0' && *msg <= '9') &&
                 !(*msg >= 'A' && *msg <= 'F') &&
                     !(*msg >= 'a' && *msg <= 'f')) {
             return SBP_ERROR_PROTOCOL_FORMAT;
         }
     }
-    if (*msg++ != ']') {
+    if (id_len == 0 || *msg++ != ']') {
         return SBP_ERROR_PROTOCOL_FORMAT;
     }
 
