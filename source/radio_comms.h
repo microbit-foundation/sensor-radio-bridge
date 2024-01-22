@@ -73,6 +73,12 @@ typedef __PACKED_STRUCT radio_packet_s {
     };
 } radio_packet_t;
 
+static_assert(sizeof(radio_cmd_t) == 16, "radio_cmd_t should be 16 bytes");
+static_assert(sizeof(radio_cmd_t) == sizeof(radio_cmd_display_t),
+    "radio_cmd_display_t should be same size as radio_cmd_t");
+static_assert(sizeof(radio_sensor_data_s) == sizeof(radio_sensor_data_s),
+    "radio_sensor_data_s should be same size as radio_cmd_t");
+static_assert(sizeof(radio_packet_t) == 28, "radio_packet_t should be 28 bytes");
 
 /**
  * @brief Type definition for the callback with the received radio data.

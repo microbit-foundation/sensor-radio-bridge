@@ -82,7 +82,7 @@ def send_command(ubit_serial, command, wait_response=True, timeout=5):
                     return cmd[:-1], serial_line[index:-1], periodic_messages
                 else:
                     raise Exception(f"Unexpected response: {serial_line}")
-            if serial_line.startswith(b"P["):
+            if serial_line.startswith(b"P"):
                 # Periodic messages that are received at a constant interval
                 periodic_messages.append(serial_line[:-1])
             else:
@@ -163,8 +163,8 @@ def main():
         raise Exception("Periodic messages received, start command  failed.")
     print("Start command successful.")
 
-    print("Printing all periodic messages received now...")
-    timeout_time = time.time() + 1    # 1 second timeout
+    print("Printing all periodic messages received for 1 second...")
+    timeout_time = time.time() + 1
     while time.time() < timeout_time:
         serial_line = ubit_serial.readline()
         if len(serial_line) > 0:
@@ -173,14 +173,53 @@ def main():
             else:
                 print(f"\t(DEVICE ❌) {serial_line[:-1]}")
                 #raise Exception(f"Message received is not periodic type: {serial_line}")
+        time.sleep(0.0005)
+
+    print("Sending stop command.")
+    sent_stop, stop_response, periodic_msgs = send_command(ubit_serial, "STOP[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_stop}")
+    if not stop_response:
+        raise Exception("Stop command failed.")
+    print(f"\t(DEVICE 🔙) {stop_response}")
+    # Parsing the response for the start command
+    response_cmd = stop_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "STOP[]":
+        raise Exception("Stop command failed.")
+    print("Additional periodic messages while processing STOP command:")
+    for msg in periodic_msgs:
+        print(f"\t(DEVICE 🔁) {msg}")
+
+    print("Sending compressed start command.")
+    sent_zstart, zstart_response, periodic_msgs = send_command(ubit_serial, "ZSTART[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_zstart}")
+    if not zstart_response:
+        raise Exception("ZStart command failed.")
+    print(f"\t(DEVICE 🔙) {zstart_response}")
+    # Parsing the response for the start command
+    response_cmd = zstart_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "ZSTART[]":
+        raise Exception("ZStart command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, zstart command  failed.")
+    print("Start command successful.")
+
+    print("Printing all periodic messages...")
+    timeout_time = time.time() + 1  # 1 second timeout
+    while time.time() < timeout_time:
+        serial_line = ubit_serial.readline()
+        if len(serial_line) > 0:
+            if serial_line.startswith(b"P"):
+                print(f"\t(DEVICE 🔁) {serial_line[:-1]}")
+            else:
+                print(f"\t(DEVICE ❌) {serial_line[:-1]}")
+                #raise Exception(f"Message received is not periodic type: {serial_line}")
             timeout_time = time.time() + 100    # 1 second timeout
 
-        #send_command(ubit_serial, "START[A,B,BL]", wait_response=False)
-        time.sleep(0.003)
+        time.sleep(0.001)
 
     print("(SCRIPT ➡️) Timeout.")
 
-    return 0
+    return 1
 
 
 if __name__ == "__main__":

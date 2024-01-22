@@ -8,6 +8,7 @@
 /** Default protocol state values */
 #define SBP_DEFAULT_RADIO_FREQ      42
 #define SBP_DEFAULT_SEND_PERIODIC   false
+#define SBP_DEFAULT_PERIODIC_Z      false
 #define SBP_DEFAULT_PERIOD_MS       20
 #define SBP_DEFAULT_SENSORS         0
 
@@ -20,6 +21,7 @@
 #define SBP_ERROR_MSG_TYPE          (-5)
 #define SBP_ERROR_CMD_TYPE          (-6)
 #define SBP_ERROR_CMD_VALUE         (-7)
+#define SBP_ERROR_NOT_IMPLEMENTED   (-8)
 
 #define SBP_MSG_SEPARATOR           "\n"
 #define SBP_MSG_SEPARATOR_LEN       (sizeof(SBP_MSG_SEPARATOR) - 1)
@@ -52,6 +54,7 @@ typedef enum sbp_cmd_type_e {
     SBP_CMD_SWVERSION,
     SBP_CMD_HWVERSION,
     SBP_CMD_START,
+    SBP_CMD_ZSTART,
     SBP_CMD_STOP,
     SBP_CMD_TYPE_LEN,
 } sbp_cmd_type_t;
@@ -63,6 +66,7 @@ const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
     "SWVER",    // SBP_CMD_SWVERSION
     "HWVER",    // SBP_CMD_HWVERSION
     "START",    // SBP_CMD_START
+    "ZSTART",   // SBP_CMD_ZSTART
     "STOP",     // SBP_CMD_STOP
 };
 
@@ -83,6 +87,7 @@ typedef struct sbp_cmd_callback_s {
     sbp_cmd_callback_t swversion = NULL;
     sbp_cmd_callback_t hwversion = NULL;
     sbp_cmd_callback_t start = NULL;
+    sbp_cmd_callback_t zstart = NULL;
     sbp_cmd_callback_t stop = NULL;
 } sbp_cmd_callbacks_t;
 
@@ -201,6 +206,7 @@ typedef struct sbp_sensor_data_s {
 typedef struct sbp_state_s {
     uint8_t radio_frequency = 0;
     bool send_periodic = false;
+    bool periodic_compressed = false;
     uint16_t period_ms = 0;
     sbp_sensors_t sensors = { };
 } sbp_state_t;
@@ -231,6 +237,22 @@ int sbp_sensorDataPeriodicStr(const sbp_sensors_t enabled_data,
                               const sbp_sensor_data_t *data,
                               char *str_buffer,
                               int str_buffer_len);
+
+/**
+ * @brief Converts sensor data to a protocol serial string with the compressed
+ * format.
+ *
+ * @param enabled_data The configuration of the enabled/disabled sensor data.
+ * @param data The actual sensor data.
+ * @param str_buffer The buffer to store the serial string representation.
+ * @param str_buffer_len The length of the buffer.
+ * @return The number of characters written to the buffer, excluding the
+ *        null terminator, or a negative number if an error occurred.
+ */
+int sbp_compressedSensorDataPeriodicStr(const sbp_sensors_t enabled_data,
+                                        const sbp_sensor_data_t *data,
+                                        char *str_buffer,
+                                        int str_buffer_len);
 
 /**
  * @brief Processes a command message, identifies it, and prepares the

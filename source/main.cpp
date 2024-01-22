@@ -279,8 +279,14 @@ int main() {
         // If periodic messages are enabled, send them
         if (protocol_state.send_periodic) {
             updateSensorData(protocol_state.sensors, &sensor_data);
-            int serial_str_length = sbp_sensorDataPeriodicStr(
-                    protocol_state.sensors, &sensor_data, serial_data, serial_data_len);
+            int serial_str_length;
+            if (protocol_state.periodic_compressed) {
+                serial_str_length = sbp_compressedSensorDataPeriodicStr(
+                        protocol_state.sensors, &sensor_data, serial_data, serial_data_len);
+            } else {
+                serial_str_length = sbp_sensorDataPeriodicStr(
+                        protocol_state.sensors, &sensor_data, serial_data, serial_data_len);
+            }
             if (serial_str_length < SBP_SUCCESS) uBit.panic(220);
 
             // For development, uncomment to check available free time

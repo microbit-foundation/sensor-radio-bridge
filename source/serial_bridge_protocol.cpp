@@ -3,8 +3,9 @@
 #include <string.h>
 #include "serial_bridge_protocol.h"
 
-#define MIN(a, b)       (((a) < (b)) ? (a) : (b))
-#define MAX(a, b)       (((a) > (b)) ? (a) : (b))
+#define MIN(a, b)               (((a) < (b)) ? (a) : (b))
+#define MAX(a, b)               (((a) > (b)) ? (a) : (b))
+#define CLAMP(x, min, max)      MIN(MAX(x, min), max)
 
 static size_t CMD_MAX_LEN = 0;
 static sbp_cmd_callbacks_t cmd_cbk = { };
@@ -265,6 +266,8 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(received_cmd, "2", 1, str_buffer, str_buffer_len);
         }
         case SBP_CMD_START: {
+            protocol_state->send_periodic = true;
+            protocol_state->periodic_compressed = false;
             protocol_state->sensors.raw = 0;
             // The value format for the start command is a single letter for each sensor type
             // e.g. "AMBL" for accelerometer, magnetometer, buttons and light level
@@ -280,8 +283,21 @@ static int sbp_processCommandResponse(
                 }
                 if (!sensor_found) return SBP_ERROR_CMD_VALUE;
             }
-            protocol_state->send_periodic = true;
+
             if (cmd_cbk.start && cmd_cbk.start(protocol_state) != SBP_SUCCESS) {
+                return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
+            }
+            return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
+        }
+        case SBP_CMD_ZSTART: {
+            protocol_state->send_periodic = true;
+            protocol_state->periodic_compressed = true;
+            protocol_state->sensors.raw = 0;
+            // TODO: Currently hardcoding this command to only send accelerometer and buttons
+            //       as that's all that is implemented right now
+            protocol_state->sensors.accelerometer = true;
+            protocol_state->sensors.buttons = true;
+            if (cmd_cbk.zstart && cmd_cbk.zstart(protocol_state) != SBP_SUCCESS) {
                 return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
             }
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
@@ -314,6 +330,7 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     // Set protocol state defaults
     protocol_state->radio_frequency = SBP_DEFAULT_RADIO_FREQ;
     protocol_state->send_periodic = SBP_DEFAULT_SEND_PERIODIC;
+    protocol_state->periodic_compressed = SBP_DEFAULT_PERIODIC_Z;
     protocol_state->period_ms = SBP_DEFAULT_PERIOD_MS;
     protocol_state->sensors.raw = SBP_DEFAULT_SENSORS;
 }
@@ -447,6 +464,82 @@ int sbp_sensorDataPeriodicStr(
         } else {
             return SBP_ERROR_ENCODING;
         }
+    }
+
+    // Ensure the string ends with the message separator and a null terminator
+    if ((str_buffer_len - serial_data_length) >= (SBP_MSG_SEPARATOR_LEN + 1)) {
+        serial_data_length += snprintf(
+            str_buffer + serial_data_length, SBP_MSG_SEPARATOR_LEN + 1, SBP_MSG_SEPARATOR
+        );
+    } else {
+        const size_t first_char_index = str_buffer_len - (SBP_MSG_SEPARATOR_LEN + 1);
+        for (size_t i = 0; i < SBP_MSG_SEPARATOR_LEN; i++) {
+            str_buffer[first_char_index + i] = SBP_MSG_SEPARATOR[i];
+        }
+        str_buffer[str_buffer_len - 1] = '\0';
+        return SBP_ERROR_LEN;
+    }
+
+    return serial_data_length;
+}
+
+int sbp_compressedSensorDataPeriodicStr(
+    const sbp_sensors_t enabled_data, const sbp_sensor_data_t *data,
+    char *str_buffer, const int str_buffer_len
+) {
+    int serial_data_length = 0;
+    // The message ID is only 1 byte long
+    static uint8_t packet_id = 0;
+
+    int cx = snprintf(
+        str_buffer + serial_data_length,
+        str_buffer_len - serial_data_length,
+        "P%02X", packet_id++
+    );
+    if (cx > 0) {
+        serial_data_length += MIN(cx, str_buffer_len - serial_data_length - 1);
+    } else {
+        return SBP_ERROR_ENCODING;
+    }
+
+    if (enabled_data.accelerometer) {
+        // Accelerometer max is +/- 2 g, so we can use 12 bits (3 Hex digits) per axis
+        uint16_t x = CLAMP(data->accelerometer_x, -2048, 2047) + 2048;
+        uint16_t y = CLAMP(data->accelerometer_y, -2048, 2047) + 2048;
+        uint16_t z = CLAMP(data->accelerometer_z, -2048, 2047) + 2048;
+
+        int cx = snprintf(
+            str_buffer + serial_data_length,
+            str_buffer_len - serial_data_length,
+            "%03X%03X%03X", x, y, z
+        );
+        if (cx > 0) {
+            serial_data_length += MIN(cx, str_buffer_len - serial_data_length - 1);
+        } else {
+            return SBP_ERROR_ENCODING;
+        }
+    }
+    if (enabled_data.buttons) {
+        // Buttons are 1 bit each, with button A as the LSB
+        uint8_t buttons = (data->button_a & 0x01) | ((data->button_b & 0x01) << 1);
+
+        int cx = snprintf(
+            str_buffer + serial_data_length,
+            str_buffer_len - serial_data_length,
+            "%1X", buttons
+        );
+        if (cx > 0) {
+            serial_data_length += MIN(cx, str_buffer_len - serial_data_length - 1);
+        } else {
+            return SBP_ERROR_ENCODING;
+        }
+    }
+
+    // TODO: Only accelerometer and buttons implemented, other sensors are not
+    //       implemented yet
+    if (enabled_data.magnetometer || enabled_data.button_logo || enabled_data.button_pins ||
+        enabled_data.temperature || enabled_data.light_level || enabled_data.sound_level) {
+        return SBP_ERROR_NOT_IMPLEMENTED;
     }
 
     // Ensure the string ends with the message separator and a null terminator
