@@ -91,20 +91,12 @@ def send_command(ubit_serial, command, wait_response=True, timeout=5):
     raise Exception(f"Timed out waiting for response to -> {cmd}")
 
 
-def main():
-    print("Connecting to device serial..")
-    microbit_port = find_microbit_serial_port()
-    if not microbit_port:
-        raise Exception("Could not automatically detect micro:bit port.")
-    ubit_serial = Serial(
-        microbit_port, 115200, timeout=0.5, parity=PARITY_NONE,
-        stopbits=STOPBITS_ONE, rtscts=False, dsrdtr=False
-    )
-    print("Connected, printing any received data (there shouldn't be any)...")
-    time.sleep(0.1)
-    print_all_serial_received(ubit_serial)
-    print("Done.")
+def test_handshake(ubit_serial):
+    """
+    Test the handshake command.
 
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
     print("Sending handshake.")
     sent_handshake, handshake_response, periodic_msgs = send_command(ubit_serial, "HS[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_handshake}")
@@ -119,8 +111,16 @@ def main():
         raise Exception("Periodic messages received, handshake failed.")
     print("Handshake successful.")
 
+
+def test_radio_frequency(ubit_serial):
+    """
+    Test the radio frequency command.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
     print("Sending radio frequency command.")
     random_freq = random.randint(0, 255)
+    # FIXME: This is a hack to make sure the frequency is always the same between tests
     random_freq = 42
     sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{random_freq}]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_radio_freq}")
@@ -135,6 +135,13 @@ def main():
         raise Exception("Periodic messages received, start command  failed.")
     print("Radio Frequency command successful.")
 
+
+def test_periodic_ms(ubit_serial):
+    """
+    Test the command to configure periodic message period in milliseconds.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
     print("Sending periodic message period in milliseconds.")
     sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[20]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_period}")
@@ -149,6 +156,13 @@ def main():
         raise Exception("Periodic messages received, period command  failed.")
     print("Period command successful.")
 
+
+def test_start_stop(ubit_serial):
+    """
+    Test the start command to stream data for 1 second and stop.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
     print("Sending start command.")
     sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[PABFMLTS]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_start}")
@@ -173,7 +187,7 @@ def main():
             else:
                 print(f"\t(DEVICE ❌) {serial_line[:-1]}")
                 #raise Exception(f"Message received is not periodic type: {serial_line}")
-        time.sleep(0.0005)
+        time.sleep(0.001)
 
     print("Sending stop command.")
     sent_stop, stop_response, periodic_msgs = send_command(ubit_serial, "STOP[]", wait_response=True)
@@ -188,7 +202,15 @@ def main():
     print("Additional periodic messages while processing STOP command:")
     for msg in periodic_msgs:
         print(f"\t(DEVICE 🔁) {msg}")
+    print("Stop command successful.")
 
+
+def test_zstart_stop(ubit_serial):
+    """
+    Test the compressed start command to stream data for 1 second and stop.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
     print("Sending compressed start command.")
     sent_zstart, zstart_response, periodic_msgs = send_command(ubit_serial, "ZSTART[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_zstart}")
@@ -213,13 +235,47 @@ def main():
             else:
                 print(f"\t(DEVICE ❌) {serial_line[:-1]}")
                 #raise Exception(f"Message received is not periodic type: {serial_line}")
-            timeout_time = time.time() + 100    # 1 second timeout
+            # timeout_time = time.time() + 100    # 1 second timeout
 
         time.sleep(0.001)
 
-    print("(SCRIPT ➡️) Timeout.")
+    print("Sending stop command.")
+    sent_stop, stop_response, periodic_msgs = send_command(ubit_serial, "STOP[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_stop}")
+    if not stop_response:
+        raise Exception("Stop command failed.")
+    print(f"\t(DEVICE 🔙) {stop_response}")
+    # Parsing the response for the start command
+    response_cmd = stop_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "STOP[]":
+        raise Exception("Stop command failed.")
+    print("Additional periodic messages while processing STOP command:")
+    for msg in periodic_msgs:
+        print(f"\t(DEVICE 🔁) {msg}")
+    print("Stop command successful.")
 
-    return 1
+
+def main():
+    print("Connecting to device serial..")
+    microbit_port = find_microbit_serial_port()
+    if not microbit_port:
+        raise Exception("Could not automatically detect micro:bit port.")
+    ubit_serial = Serial(
+        microbit_port, 115200, timeout=0.5, parity=PARITY_NONE,
+        stopbits=STOPBITS_ONE, rtscts=False, dsrdtr=False
+    )
+    print("Connected, printing any received data (there shouldn't be any)...")
+    time.sleep(0.1)
+    print_all_serial_received(ubit_serial)
+    print("Done.")
+
+    test_handshake(ubit_serial)
+    test_radio_frequency(ubit_serial)
+    test_periodic_ms(ubit_serial)
+    test_start_stop(ubit_serial)
+    test_zstart_stop(ubit_serial)
+
+    return 0
 
 
 if __name__ == "__main__":
