@@ -267,7 +267,7 @@ static int sbp_processCommandResponse(
         }
         case SBP_CMD_START: {
             protocol_state->send_periodic = true;
-            protocol_state->periodic_compressed = false;
+            protocol_state->periodic_compact = false;
             protocol_state->sensors.raw = 0;
             // The value format for the start command is a single letter for each sensor type
             // e.g. "AMBL" for accelerometer, magnetometer, buttons and light level
@@ -291,7 +291,7 @@ static int sbp_processCommandResponse(
         }
         case SBP_CMD_ZSTART: {
             protocol_state->send_periodic = true;
-            protocol_state->periodic_compressed = true;
+            protocol_state->periodic_compact = true;
             protocol_state->sensors.raw = 0;
             // TODO: Currently hardcoding this command to only send accelerometer and buttons
             //       as that's all that is implemented right now
@@ -330,7 +330,7 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     // Set protocol state defaults
     protocol_state->radio_frequency = SBP_DEFAULT_RADIO_FREQ;
     protocol_state->send_periodic = SBP_DEFAULT_SEND_PERIODIC;
-    protocol_state->periodic_compressed = SBP_DEFAULT_PERIODIC_Z;
+    protocol_state->periodic_compact = SBP_DEFAULT_PERIODIC_Z;
     protocol_state->period_ms = SBP_DEFAULT_PERIOD_MS;
     protocol_state->sensors.raw = SBP_DEFAULT_SENSORS;
 }
@@ -483,7 +483,7 @@ int sbp_sensorDataPeriodicStr(
     return serial_data_length;
 }
 
-int sbp_compressedSensorDataPeriodicStr(
+int sbp_compactSensorDataPeriodicStr(
     const sbp_sensors_t enabled_data, const sbp_sensor_data_t *data,
     char *str_buffer, const int str_buffer_len
 ) {

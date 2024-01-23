@@ -207,11 +207,11 @@ def test_start_stop(ubit_serial):
 
 def test_zstart_stop(ubit_serial):
     """
-    Test the compressed start command to stream data for 1 second and stop.
+    Test the compact start command to stream data for 1 second and stop.
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending compressed start command.")
+    print("Sending compact start command.")
     sent_zstart, zstart_response, periodic_msgs = send_command(ubit_serial, "ZSTART[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_zstart}")
     if not zstart_response:

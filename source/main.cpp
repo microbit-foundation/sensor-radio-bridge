@@ -280,8 +280,8 @@ int main() {
         if (protocol_state.send_periodic) {
             updateSensorData(protocol_state.sensors, &sensor_data);
             int serial_str_length;
-            if (protocol_state.periodic_compressed) {
-                serial_str_length = sbp_compressedSensorDataPeriodicStr(
+            if (protocol_state.periodic_compact) {
+                serial_str_length = sbp_compactSensorDataPeriodicStr(
                         protocol_state.sensors, &sensor_data, serial_data, serial_data_len);
             } else {
                 serial_str_length = sbp_sensorDataPeriodicStr(

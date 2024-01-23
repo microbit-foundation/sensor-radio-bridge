@@ -206,7 +206,7 @@ typedef struct sbp_sensor_data_s {
 typedef struct sbp_state_s {
     uint8_t radio_frequency = 0;
     bool send_periodic = false;
-    bool periodic_compressed = false;
+    bool periodic_compact = false;
     uint16_t period_ms = 0;
     sbp_sensors_t sensors = { };
 } sbp_state_t;
@@ -239,7 +239,7 @@ int sbp_sensorDataPeriodicStr(const sbp_sensors_t enabled_data,
                               int str_buffer_len);
 
 /**
- * @brief Converts sensor data to a protocol serial string with the compressed
+ * @brief Converts sensor data to a protocol serial string with the compact
  * format.
  *
  * @param enabled_data The configuration of the enabled/disabled sensor data.
@@ -249,10 +249,10 @@ int sbp_sensorDataPeriodicStr(const sbp_sensors_t enabled_data,
  * @return The number of characters written to the buffer, excluding the
  *        null terminator, or a negative number if an error occurred.
  */
-int sbp_compressedSensorDataPeriodicStr(const sbp_sensors_t enabled_data,
-                                        const sbp_sensor_data_t *data,
-                                        char *str_buffer,
-                                        int str_buffer_len);
+int sbp_compactSensorDataPeriodicStr(const sbp_sensors_t enabled_data,
+                                     const sbp_sensor_data_t *data,
+                                     char *str_buffer,
+                                     int str_buffer_len);
 
 /**
  * @brief Processes a command message, identifies it, and prepares the
