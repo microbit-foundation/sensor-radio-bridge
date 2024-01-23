@@ -80,15 +80,12 @@ const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
  * @brief Structure of function pointers to use as callbacks for each command.
  */
 typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
+
+// For symmetry this would include an entry per command, but in reality
+//  we are not going to use the rest
 typedef struct sbp_cmd_callback_s {
-    sbp_cmd_callback_t handshake = NULL;
     sbp_cmd_callback_t radiofrequency = NULL;
     sbp_cmd_callback_t period = NULL;
-    sbp_cmd_callback_t swversion = NULL;
-    sbp_cmd_callback_t hwversion = NULL;
-    sbp_cmd_callback_t start = NULL;
-    sbp_cmd_callback_t zstart = NULL;
-    sbp_cmd_callback_t stop = NULL;
 } sbp_cmd_callbacks_t;
 
 /**
@@ -201,16 +198,17 @@ typedef struct sbp_sensor_data_s {
 } sbp_sensor_data_t;
 
 /**
- * @brief Structure to hold the state of the protocol.
+ * @brief Structure to hold the state of the protocol data.
  */
-typedef struct sbp_state_s {
-    uint8_t radio_frequency = 0;
-    bool send_periodic = false;
-    bool periodic_compact = false;
-    uint16_t period_ms = 0;
-    sbp_sensors_t sensors = { };
+ typedef struct sbp_state_s {
+    uint8_t radio_frequency ;
+    bool send_periodic ;
+    bool periodic_compact ;
+    uint16_t period_ms ;
+    uint8_t hw_version;
+    char *sw_version;
+    sbp_sensors_t sensors ;
 } sbp_state_t;
-
 
 /**
  * @brief Initialises the protocol data structures.

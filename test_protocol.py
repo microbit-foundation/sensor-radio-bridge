@@ -157,6 +157,48 @@ def test_periodic_ms(ubit_serial):
     print("Period command successful.")
 
 
+def test_sw_version(ubit_serial):
+    """
+    Test the command to get the software version.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
+    print("Sending software version command.")
+    sent_sw_version, sw_version_response, periodic_msgs = send_command(ubit_serial, "SWVER[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_sw_version}")
+    if not sw_version_response:
+        raise Exception("Software Version command failed.")
+    print(f"\t(DEVICE 🔙) {sw_version_response}")
+    # Parsing the response for the start command
+    response_cmd = sw_version_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "SWVER[0.1.0]":
+        raise Exception("Software Version command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, software version command  failed.")
+    print("Software Version command successful.")
+
+
+def test_hw_version(ubit_serial):
+    """
+    Test the command to get the hardware version.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
+    print("Sending hardware version command.")
+    sent_hw_version, hw_version_response, periodic_msgs = send_command(ubit_serial, "HWVER[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_hw_version}")
+    if not hw_version_response:
+        raise Exception("Hardware Version command failed.")
+    print(f"\t(DEVICE 🔙) {hw_version_response}")
+    # Parsing the response for the start command
+    response_cmd = hw_version_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "HWVER[2]":
+        raise Exception("Hardware Version command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, hardware version command  failed.")
+    print("Hardware Version command successful.")
+
+
 def test_start_stop(ubit_serial):
     """
     Test the start command to stream data for 1 second and stop.
@@ -272,6 +314,8 @@ def main():
     test_handshake(ubit_serial)
     test_radio_frequency(ubit_serial)
     test_periodic_ms(ubit_serial)
+    test_sw_version(ubit_serial)
+    test_hw_version(ubit_serial)
     test_start_stop(ubit_serial)
     test_zstart_stop(ubit_serial)
 

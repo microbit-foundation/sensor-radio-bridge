@@ -234,15 +234,21 @@ int main() {
     const size_t serial_data_len = SERIAL_BUFFER_LEN + 1;
     char serial_data[serial_data_len];
 
-    sbp_state_t protocol_state = { };
+    sbp_state_t protocol_state = {
+        .radio_frequency = getRadioFrequency(),
+        .send_periodic = SBP_DEFAULT_SEND_PERIODIC,
+        .periodic_compact = SBP_DEFAULT_PERIODIC_Z,
+        .period_ms = SBP_DEFAULT_PERIOD_MS,
+        // TODO: Get the hardware version from the micro:bit DAL/CODAL
+        .hw_version = 2,
+        .sw_version = PROJECT_VERSION,
+        .sensors = { },
+    };
     sbp_cmd_callbacks_t protocol_callbacks = { };
     protocol_callbacks.radiofrequency = storeRadioFrequency;
     protocol_callbacks.period = checkPeriod;
 
     sbp_init(&protocol_callbacks, &protocol_state);
-
-    // Set the radio from NVM if saved already, otherwise use the default
-    protocol_state.radio_frequency = getRadioFrequency();
 
 #if CONFIG_ENABLED(RADIO_SENDER)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
