@@ -250,7 +250,7 @@ int main() {
 
     sbp_init(&protocol_callbacks, &protocol_state);
 
-#if CONFIG_ENABLED(RADIO_SENDER)
+#if CONFIG_ENABLED(RADIO_REMOTE)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
     radiotx_mainLoop(protocol_state.radio_frequency);
 #elif CONFIG_ENABLED(RADIO_BRIDGE)

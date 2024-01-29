@@ -4,12 +4,6 @@
 #include "cmsis_compiler.h"
 #include "main.h"
 
-#define RADIO_SENDER 0
-
-#if CONFIG_DISABLED(RADIO_SENDER)
-#define RADIO_BRIDGE 0
-#endif
-
 /**
  * @brief List of radio packet types
  */
@@ -114,7 +108,7 @@ void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency);
 void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *value = NULL);
 #endif
 
-#if CONFIG_ENABLED(RADIO_SENDER)
+#if CONFIG_ENABLED(RADIO_REMOTE)
 /**
  * @brief Runs the main loop for a the radio sender, where it just sends
  * sensor data in an infinite loop.

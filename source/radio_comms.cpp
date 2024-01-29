@@ -33,7 +33,7 @@ static void radiobridge_onRadioData(MicroBitEvent e) {
 }
 #endif
 
-#if CONFIG_ENABLED(RADIO_SENDER)
+#if CONFIG_ENABLED(RADIO_REMOTE)
 /**
  * @brief Sends the periodic radio data.
  */
@@ -102,7 +102,7 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
 // ----------------------------------------------------------------------------
 // SENDER FUNCTIONS -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-#if CONFIG_ENABLED(RADIO_SENDER)
+#if CONFIG_ENABLED(RADIO_REMOTE)
 
 static void radiotx_cmd_blink(radio_cmd_t *value) {
     (void)value;
