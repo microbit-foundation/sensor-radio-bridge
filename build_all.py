@@ -39,7 +39,7 @@ def clean_build(root_dir, hex_name, build_flags={}):
     os.environ["CXXFLAGS"] = ""
     for flag, value in build_flags.items():
         os.environ["CXXFLAGS"] += f" -D{flag}={value}"
-    print(f"\n\n{'#' * 80}\n# Building: {hex_name}\n{'#' * 80}")
+    print(f"\n{'#' * 80}\n# Building: {hex_name}\n{'#' * 80}")
     build(clean=True, verbose=False, parallelism=os.cpu_count())
 
     # Rename the hex file to hex_name
@@ -56,8 +56,10 @@ def main():
             #return 1
 
     clean_build(ROOT_DIR, "local-sensors.hex", build_flags={"PROJECT_BUILD_TYPE": "1"})
-    clean_build(ROOT_DIR, "radio-bridge.hex", build_flags={"PROJECT_BUILD_TYPE": "2"})
-    clean_build(ROOT_DIR, "radio-remote.hex", build_flags={"PROJECT_BUILD_TYPE": "3"})
+    clean_build(ROOT_DIR, "radio-remote.hex", build_flags={"PROJECT_BUILD_TYPE": "2"})
+    clean_build(ROOT_DIR, "radio-remote-dev.hex", build_flags={"PROJECT_BUILD_TYPE": "3"})
+    clean_build(ROOT_DIR, "radio-bridge.hex", build_flags={"PROJECT_BUILD_TYPE": "4"})
+    clean_build(ROOT_DIR, "radio-bridge-dev.hex", build_flags={"PROJECT_BUILD_TYPE": "5"})
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 #include "main.h"
 #include "radio_comms.h"
+#include "mb_images.h"
 
 /**
  * @brief Stores the callback for the received radio packets.
@@ -87,7 +88,7 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
         .cmd_type = cmd,
         .id = id,
         .mb_id = mb_id,
-        .cmd_data = { 0 },
+        .cmd_data = { },
     };
     uBit.serial.printf("Sending command %d to %x\n", cmd, mb_id);
 
@@ -116,6 +117,7 @@ static void radiotx_cmd_blink(radio_cmd_t *value) {
             uBit.display.clear();
             uBit.sleep(200);
         }
+        uBit.display.print(IMG_RUNNING);
     });
 }
 
@@ -146,16 +148,24 @@ void radiotx_mainLoop(uint8_t radio_frequency) {
     uBit.radio.setFrequencyBand(radio_frequency);
     uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, radiotx_onRadioData);
 
-
+    uBit.display.print(IMG_RUNNING);
     bool broadcast_sensors = true;
 
     while (true) {
-        radiotx_sendPeriodicData();
-        if (uBit.buttonA.isPressed()) {
-            // FIXME: For development, start or stop broadcasting data
-            broadcast_sensors = !broadcast_sensors;
+        if (broadcast_sensors) {
+            radiotx_sendPeriodicData();
         }
-        uBit.sleep(40);
+
+#if CONFIG_ENABLED(DEV_MODE)
+        // FIXME: For development, start or stop broadcasting data
+        if (uBit.buttonA.isPressed()) {
+            broadcast_sensors = !broadcast_sensors;
+            uBit.display.print(broadcast_sensors ? IMG_RUNNING : IMG_WAITING);
+            uBit.sleep(200);
+        }
+#endif
+
+        uBit.sleep(10);
     }
 }
 #endif

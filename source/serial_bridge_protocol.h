@@ -186,15 +186,16 @@ typedef struct sbp_sensor_data_s {
     int magnetometer_x = 0;
     int magnetometer_y = 0;
     int magnetometer_z = 0;
+    int temperature = 0;
+    int light_level = 0;
+    int sound_level = 0;
     bool button_a = 0;
     bool button_b = 0;
     bool button_logo = 0;
     bool button_p0 = 0;
     bool button_p1 = 0;
     bool button_p2 = 0;
-    int temperature = 0;
-    int light_level = 0;
-    int sound_level = 0;
+    bool fresh_data = 0;
 } sbp_sensor_data_t;
 
 /**

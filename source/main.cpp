@@ -4,6 +4,7 @@
 #include "MicroBit.h"
 #include "serial_bridge_protocol.h"
 #include "radio_comms.h"
+#include "mb_images.h"
 #include "main.h"
 
 MicroBit uBit;
@@ -17,12 +18,14 @@ static const int SERIAL_BUFFER_LEN = 128;
 const uint32_t RADIO_FREQ_ADDR = 0x0007FC00;
 
 // Storing a list of active micro:bit IDs sending radio data
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 static const size_t MB_IDS_LEN = 32;
 static const size_t MB_IDS_ID = 0;
 static const size_t MB_IDS_TIME = 1;
 static uint32_t mb_ids[MB_IDS_LEN][2] = { };
 static size_t active_mb_id_i = MB_IDS_LEN;
 #define GET_ACTIVE_MB_ID()      mb_ids[active_mb_id_i][MB_IDS_ID]
+#endif
 
 static sbp_sensor_data_t sensor_data = { };
 
@@ -75,8 +78,8 @@ static void updateMbIds(uint32_t mb_id) {
 /**
  * @brief Switches the active micro:bit to the next one active in the list.
  */
-void switchNextActiveMicrobit() {
 #if CONFIG_ENABLED(RADIO_BRIDGE)
+void switchNextActiveMicrobit() {
     // Debounce to only allow switching once per second
     static uint32_t last_switch_time = 0;
     if (uBit.systemTime() < (last_switch_time + 1000)) return;
@@ -96,8 +99,8 @@ void switchNextActiveMicrobit() {
     } while (mb_ids[next_active_mb_id_i][MB_IDS_ID] == 0);
     active_mb_id_i = next_active_mb_id_i;
     radiobridge_sendCommand(GET_ACTIVE_MB_ID(), RADIO_CMD_BLINK);
-#endif
 }
+#endif
 
 /**
  * @brief Callback for received radio packets.
@@ -115,6 +118,7 @@ static void radioDataCallback(radio_packet_t *radio_packet) {
         sensor_data.button_a = radio_sensor_data->button_a;
         sensor_data.button_b = radio_sensor_data->button_b;
         sensor_data.button_logo = radio_sensor_data->button_logo;
+        sensor_data.fresh_data = true;
     }
     updateMbIds(radio_packet->mb_id);
 }
@@ -221,11 +225,14 @@ void updateSensorData(const sbp_sensors_t sensor_config, sbp_sensor_data_t *sens
     if (sensor_config.sound_level) {
         sensor_data->sound_level = (int)uBit.audio.levelSPL->getValue();
     };
+    sensor_data->fresh_data = true;
 #endif
 }
 
 int main() {
     uBit.init();
+
+    uBit.display.print(IMG_WAITING);
 
     uBit.serial.setTxBufferSize(SERIAL_BUFFER_LEN);
     uBit.serial.setRxBufferSize(SERIAL_BUFFER_LEN);
@@ -278,13 +285,18 @@ int main() {
             }
         }
 
+#if CONFIG_ENABLED(RADIO_BRIDGE) && CONFIG_ENABLED(DEV_MODE)
         if (uBit.buttonA.isPressed()) {
             switchNextActiveMicrobit();
         }
+#endif
 
-        // If periodic messages are enabled, send them
+        // If periodic messages are enabled and new data has been received, send it
         if (protocol_state.send_periodic) {
             updateSensorData(protocol_state.sensors, &sensor_data);
+            bool fresh_data = sensor_data.fresh_data;
+            sensor_data.fresh_data = false;
+
             int serial_str_length;
             if (protocol_state.periodic_compact) {
                 serial_str_length = sbp_compactSensorDataPeriodicStr(
@@ -301,7 +313,19 @@ int main() {
             // Now wait without sleeping until ready to send the serial message
             while (uBit.systemTime() < next_periodic_msg);
             next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
-            uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
+
+            if (fresh_data) {
+                uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
+                uBit.display.print(IMG_RUNNING);
+            } else {
+                // Stale data, blink the waiting image until new data is received
+                static bool blink = true;
+                static uint32_t count = 0;
+                if (count++ % 30 == 0) {
+                    uBit.display.print(blink ? IMG_WAITING : IMG_EMPTY);
+                    blink = !blink;
+                }
+            }
         } else {
             // In this case we don't need to keep a constant periodic interval, just continue
             next_periodic_msg = uBit.systemTime() + protocol_state.period_ms;
