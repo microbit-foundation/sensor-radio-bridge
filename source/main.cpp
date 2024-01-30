@@ -126,6 +126,9 @@ static void radioDataCallback(radio_packet_t *radio_packet) {
 
 /**
  * @brief Stores the radio frequency in flash, for permanence after reset or power off.
+ * 
+ * TODO: The panics in this function are useful for development, but for the final
+ *       release version they should be removed and simply use the given radio frequency.
  *
  * @param protocol_state The protocol state with the updated radio frequency value.
  *
@@ -135,13 +138,12 @@ int storeRadioFrequency(sbp_state_s *protocol_state) {
     uint32_t *stored_radio_freq = (uint32_t *)RADIO_FREQ_ADDR;
     if (*stored_radio_freq == 0xFFFFFFFF) {
         uint32_t radio_freq = protocol_state->radio_frequency;
-        // TODO: Commented out so that we don't need to constantly reflash during development
-        // MicroBitFlash flash;
-        // int success = flash.flash_write((void *)RADIO_FREQ_ADDR, (void *)&radio_freq, 4, NULL);
-        // if (success != MICROBIT_OK) uBit.panic(230);
-        // if (*stored_radio_freq != radio_freq) uBit.panic(231);
+        MicroBitFlash flash;
+        int success = flash.flash_write((void *)RADIO_FREQ_ADDR, (void *)&radio_freq, 4, NULL);
+        if (success != MICROBIT_OK) uBit.panic(230);
+        if (*stored_radio_freq != radio_freq) uBit.panic(231);
 
-        int success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
+        success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
         if (success != MICROBIT_OK) uBit.panic(232);
     } else if ((uint32_t)protocol_state->radio_frequency != *stored_radio_freq) {
         // TODO: Right now responds with stored frequency, but it should probably be an error
