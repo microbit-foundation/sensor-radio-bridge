@@ -12,7 +12,7 @@
 #define SBP_DEFAULT_PERIOD_MS       20
 #define SBP_DEFAULT_SENSORS         0
 
-/** Error codes */
+/** Internal error codes */
 #define SBP_SUCCESS                 (0)
 #define SBP_ERROR                   (-1)
 #define SBP_ERROR_LEN               (-2)
@@ -22,6 +22,9 @@
 #define SBP_ERROR_CMD_TYPE          (-6)
 #define SBP_ERROR_CMD_VALUE         (-7)
 #define SBP_ERROR_NOT_IMPLEMENTED   (-8)
+
+/** External error codes */
+#define SBP_ERROR_CODE_INVALID_VALUE        1
 
 #define SBP_MSG_SEPARATOR           "\n"
 #define SBP_MSG_SEPARATOR_LEN       (sizeof(SBP_MSG_SEPARATOR) - 1)
@@ -73,7 +76,7 @@ const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
 /** Command value limits */
 #define SBP_CMD_RADIO_FREQ_MIN      (0)
 #define SBP_CMD_RADIO_FREQ_MAX      (83)
-#define SBP_CMD_PERIOD_MIN          (0)
+#define SBP_CMD_PERIOD_MIN          (10)
 #define SBP_CMD_PERIOD_MAX          (UINT16_MAX)
 
 /**
@@ -85,7 +88,6 @@ typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
 //  we are not going to use the rest
 typedef struct sbp_cmd_callback_s {
     sbp_cmd_callback_t radiofrequency = NULL;
-    sbp_cmd_callback_t period = NULL;
 } sbp_cmd_callbacks_t;
 
 /**
@@ -208,7 +210,7 @@ typedef struct sbp_sensor_data_s {
     uint16_t period_ms ;
     uint8_t hw_version;
     char *sw_version;
-    sbp_sensors_t sensors ;
+    sbp_sensors_t sensors;
 } sbp_state_t;
 
 /**
@@ -216,8 +218,11 @@ typedef struct sbp_sensor_data_s {
  *
  * @param cmd_callbacks Function pointers for each command.
  * @param protocol_state The protocol state structure to initialize.
+ * 
+ * @return SBP_SUCCESS if successful, or SBP_ERROR if data in
+ *         protocol_state was invalid.
  */
-void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state);
+int sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state);
 
 /**
  * @brief Converts sensor data to a protocol serial string representation.

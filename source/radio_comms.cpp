@@ -126,7 +126,7 @@ static void radiotx_onRadioData(MicroBitEvent e) {
     PacketBuffer radio_packet = uBit.radio.datagram.recv();
     if (radio_packet.length() != sizeof(received_cmd)) {
         // TODO: Maybe ignore the packet instead? or issue error to callback?
-        uBit.panic(240);
+        uBit.panic(241);
     }
     memcpy(&received_cmd, radio_packet.getBytes(), sizeof(received_cmd));
 

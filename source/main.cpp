@@ -174,19 +174,6 @@ uint8_t getRadioFrequency() {
 }
 
 /**
- * @brief Check the period time is not too short.
- * 
- * @param protocol_state The protocol state with the updated period value.
- * @return SBP_SUCCESS if the period is valid, SBP_ERROR_CMD_VALUE otherwise.
- */
-int checkPeriod(sbp_state_s *protocol_state) {
-    if (protocol_state->period_ms < PERIODIC_BUFFER_MS) {
-        return SBP_ERROR_CMD_VALUE;
-    }
-    return SBP_SUCCESS;
-}
-
-/**
  * @brief Updates the sensor data structure with the current values as enabled
  * in sensor_config.
  *
@@ -254,9 +241,9 @@ int main() {
     };
     sbp_cmd_callbacks_t protocol_callbacks = { };
     protocol_callbacks.radiofrequency = storeRadioFrequency;
-    protocol_callbacks.period = checkPeriod;
 
-    sbp_init(&protocol_callbacks, &protocol_state);
+    int init_success = sbp_init(&protocol_callbacks, &protocol_state);
+    if (init_success < SBP_SUCCESS) uBit.panic(200);
 
 #if CONFIG_ENABLED(RADIO_REMOTE)
     // For now, the radio sender hex only sends accelerometer + button data in an infinite loop

@@ -181,12 +181,22 @@ static int sbp_generateResponseStr(
     return buffer_i;
 }
 
-static int sbp_generateErrorResponseStr(const sbp_cmd_t *cmd, char *str_buffer, const size_t str_buffer_len) {
-    // TODO: Implement this in a way that is not hard coded
-    char response[]= "R[12345678]ERROR[1234]" SBP_MSG_SEPARATOR;
-    strncpy(str_buffer, response, str_buffer_len);
+static int sbp_generateErrorResponseStr(const sbp_cmd_t *cmd, const uint8_t error_code, char *str_buffer, const size_t str_buffer_len) {
+    // 22 characters from: `R[12345678]ERROR[255]` + null terminator
+    if (str_buffer_len < (22 + SBP_MSG_SEPARATOR_LEN)) {
+        return SBP_ERROR_LEN;
+    }
 
-    return SBP_SUCCESS;
+    int cx = snprintf(
+        str_buffer,
+        str_buffer_len,
+        "R[%.*s]ERROR[%d]" SBP_MSG_SEPARATOR,
+        cmd->id_len, cmd->id,
+        error_code
+    );
+    if (cx < 1) return SBP_ERROR_ENCODING;
+
+    return cx;
 }
 
 /**
@@ -217,12 +227,12 @@ static int sbp_processCommandResponse(
                 int radio_frequency;
                 int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &radio_frequency);
                 if (result != SBP_SUCCESS || radio_frequency < SBP_CMD_RADIO_FREQ_MIN || radio_frequency > SBP_CMD_RADIO_FREQ_MAX) {
-                    return SBP_ERROR_CMD_VALUE;
+                    return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
                 protocol_state->radio_frequency = (uint8_t)radio_frequency;
 
                 if (cmd_cbk.radiofrequency && cmd_cbk.radiofrequency(protocol_state) != SBP_SUCCESS) {
-                    return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
+                    return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
             }
 
@@ -238,13 +248,9 @@ static int sbp_processCommandResponse(
             int period_ms;
             int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &period_ms);
             if (result != SBP_SUCCESS || period_ms < SBP_CMD_PERIOD_MIN || period_ms > SBP_CMD_PERIOD_MAX) {
-                return SBP_ERROR_CMD_VALUE;
+                return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
             }
             protocol_state->period_ms = (uint16_t)period_ms;
-
-            if (cmd_cbk.period && cmd_cbk.period(protocol_state) != SBP_SUCCESS) {
-                return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
-            }
 
             // Convert protocol_state->period_ms (uint16_t) into a string
             char response_period[6] = { 0 };
@@ -255,15 +261,10 @@ static int sbp_processCommandResponse(
                     received_cmd, response_period, period_str_len, str_buffer, str_buffer_len);
         }
         case SBP_CMD_SWVERSION: {
-            if (protocol_state->sw_version == NULL) {
-                return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
-            }
+            // TODO: Need to sort out versions that are not single digit, e.g. 1.2.3
             return sbp_generateResponseStr(received_cmd, protocol_state->sw_version, 5, str_buffer, str_buffer_len);
         }
         case SBP_CMD_HWVERSION: {
-            if (protocol_state->hw_version == 0) {
-                return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
-            }
             // Convert protocol_state->hw_version (uint8) to a string
             char response_hw_version[4] = { 0 };
             size_t hw_version_str_len = snprintf(response_hw_version, 6, "%d", protocol_state->hw_version);
@@ -278,15 +279,17 @@ static int sbp_processCommandResponse(
             // e.g. "AMBL" for accelerometer, magnetometer, buttons and light level
             for (size_t i = 0; i < received_cmd->value_len; i++) {
                 char value_char = *(received_cmd->value + i);
-                bool sensor_found = false;
+                bool valid_value = false;
                 for (size_t j = 0; j < SBP_SENSOR_TYPE_LEN; j++) {
                     if (value_char == sbp_sensor_type[j]) {
                         protocol_state->sensors.raw |= (uint8_t)(1 << j);
-                        sensor_found = true;
+                        valid_value = true;
                         break;
                     }
                 }
-                if (!sensor_found) return SBP_ERROR_CMD_VALUE;
+                if (!valid_value) {
+                    return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
+                }
             }
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
@@ -313,7 +316,7 @@ static int sbp_processCommandResponse(
 // ----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
+int sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     // Find the longest command type string, used for parsing commands
     for (int i = 0; i < SBP_CMD_TYPE_LEN; i++) {
         CMD_MAX_LEN = MAX(CMD_MAX_LEN, strlen(sbp_cmd_type_str[i]));
@@ -321,6 +324,16 @@ void sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
 
     // Configure the callbacks
     cmd_cbk = *cmd_callbacks;
+
+    // Some of the data should be already configured and within range
+    if (protocol_state->hw_version == 0 ||
+        protocol_state->sw_version == NULL ||
+        protocol_state->radio_frequency > SBP_CMD_RADIO_FREQ_MAX ||
+        protocol_state->period_ms > SBP_CMD_PERIOD_MAX) {
+        return SBP_ERROR;
+    }
+
+    return SBP_SUCCESS;
 }
 
 int sbp_sensorDataPeriodicStr(

@@ -73,7 +73,6 @@ def send_command(ubit_serial, command, wait_response=True, timeout=5):
     while time.time() < timeout_time:
         serial_line = ubit_serial.readline()
         if len(serial_line) > 0:
-            print(serial_line)
             if serial_line.startswith(expected_response_start):
                 return cmd[:-1], serial_line[:-1], periodic_messages
             elif serial_line.startswith(b"t["):
@@ -104,6 +103,7 @@ def test_handshake(ubit_serial):
     if not handshake_response:
         raise Exception("Handshake failed.")
     print(f"\t(DEVICE 🔙) {handshake_response}")
+
     # Parsing the response to check if it's a handshake response with "1" as the version
     response_cmd = handshake_response.decode("ascii").split("]", 1)[1]
     if response_cmd != "HS[1]":
@@ -126,13 +126,13 @@ def test_radio_frequency(ubit_serial):
     if not radio_freq_response:
         raise Exception("Set Radio Frequency command failed.")
     print(f"\t(DEVICE 🔙) {radio_freq_response}")
-    # Parsing the response for the start command
+
     response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
     if not response_cmd.startswith("RF["):
-        raise Exception("Radio Frequency command  failed.")
+        raise Exception("Radio Frequency command failed.")
     original_radio_frequency = int(response_cmd.split("[", 1)[1][:-1])
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, start command  failed.")
+        raise Exception("Periodic messages received, radio frequency command failed.")
     print("Radio Frequency command successful.")
 
     # Now set a radio frequency to the same value received
@@ -142,12 +142,12 @@ def test_radio_frequency(ubit_serial):
     if not radio_freq_response:
         raise Exception("Set Radio Frequency command failed.")
     print(f"\t(DEVICE 🔙) {radio_freq_response}")
-    # Parsing the response for the start command
+
     response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
     if response_cmd != f"RF[{original_radio_frequency}]":
-        raise Exception("Radio Frequency command  failed.")
+        raise Exception("Radio Frequency command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, start command  failed.")
+        raise Exception("Periodic messages received, radio frequency command failed.")
     print("Radio Frequency command successful.")
 
     # Now try to set a random radio frequency, which should not work
@@ -160,13 +160,31 @@ def test_radio_frequency(ubit_serial):
     if not radio_freq_response:
         raise Exception("Set Radio Frequency command failed.")
     print(f"\t(DEVICE 🔙) {radio_freq_response}")
-    # Parsing the response for the start command, which should be the original frequency
+    # Parsing the response, which should be the original frequency
     response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
     if response_cmd != f"RF[{original_radio_frequency}]":
-        raise Exception("Radio Frequency command  failed.")
+        raise Exception("Radio Frequency command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, start command  failed.")
+        raise Exception("Periodic messages received, radio frequency command failed.")
     print("Radio Frequency command successful.")
+
+
+def test_radio_frequency_error(ubit_serial):
+    out_of_range_freq = 84
+    error_value = 1
+    print("\nSending erroneous radio frequency command.")
+    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{out_of_range_freq}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_radio_freq}")
+    if not radio_freq_response:
+        raise Exception("Set Radio Frequency command failed.")
+    print(f"\t(DEVICE 🔙) {radio_freq_response}")
+
+    response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"ERROR[{error_value}]":
+        raise Exception("Error for Radio Frequency command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, radio frequency command failed.")
+    print("Radio Frequency error command successful.")
 
 
 def test_periodic_ms(ubit_serial):
@@ -181,12 +199,28 @@ def test_periodic_ms(ubit_serial):
     if not period_response:
         raise Exception("Set Period command failed.")
     print(f"\t(DEVICE 🔙) {period_response}")
-    # Parsing the response for the start command
+
     response_cmd = period_response.decode("ascii").split("]", 1)[1]
     if response_cmd != "PER[20]":
-        raise Exception("Period command  failed.")
+        raise Exception("Period command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, period command  failed.")
+        raise Exception("Periodic messages received, period command failed.")
+    print("Period command successful.")
+
+
+def test_periodic_error(ubit_serial):
+    print("\nSending erroneous periodic message.")
+    sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[5]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_period}")
+    if not period_response:
+        raise Exception("Set Period command failed.")
+    print(f"\t(DEVICE 🔙) {period_response}")
+
+    response_cmd = period_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "ERROR[1]":
+        raise Exception("Period command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, period command failed.")
     print("Period command successful.")
 
 
@@ -202,12 +236,12 @@ def test_sw_version(ubit_serial):
     if not sw_version_response:
         raise Exception("Software Version command failed.")
     print(f"\t(DEVICE 🔙) {sw_version_response}")
-    # Parsing the response for the start command
+
     response_cmd = sw_version_response.decode("ascii").split("]", 1)[1]
     if response_cmd != "SWVER[0.1.0]":
-        raise Exception("Software Version command  failed.")
+        raise Exception("Software Version command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, software version command  failed.")
+        raise Exception("Periodic messages received, software version command failed.")
     print("Software Version command successful.")
 
 
@@ -223,12 +257,12 @@ def test_hw_version(ubit_serial):
     if not hw_version_response:
         raise Exception("Hardware Version command failed.")
     print(f"\t(DEVICE 🔙) {hw_version_response}")
-    # Parsing the response for the start command
+
     response_cmd = hw_version_response.decode("ascii").split("]", 1)[1]
     if response_cmd != "HWVER[2]":
-        raise Exception("Hardware Version command  failed.")
+        raise Exception("Hardware Version command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, hardware version command  failed.")
+        raise Exception("Periodic messages received, hardware version command failed.")
     print("Hardware Version command successful.")
 
 
@@ -247,9 +281,9 @@ def test_start_stop(ubit_serial):
     # Parsing the response for the start command
     response_cmd = start_response.decode("ascii").split("]", 1)[1]
     if response_cmd != "START[]":
-        raise Exception("Start command  failed.")
+        raise Exception("Start command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, start command  failed.")
+        raise Exception("Periodic messages received, start command failed.")
     print("Start command successful.")
 
     print("Printing all periodic messages received for 1 second...")
@@ -280,6 +314,22 @@ def test_start_stop(ubit_serial):
     print("Stop command successful.")
 
 
+def test_start_error(ubit_serial):
+    print("\nSending erroneous start command.")
+    sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[PABFMLTSZ]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_start}")
+    if not start_response:
+        raise Exception("Start command failed.")
+    print(f"\t(DEVICE 🔙) {start_response}")
+
+    response_cmd = start_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "ERROR[1]":
+        raise Exception("Start command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, start command failed.")
+    print("Error start command successful.")
+
+
 def test_zstart_stop(ubit_serial):
     """
     Test the compact start command to stream data for 1 second and stop.
@@ -292,13 +342,13 @@ def test_zstart_stop(ubit_serial):
     if not zstart_response:
         raise Exception("ZStart command failed.")
     print(f"\t(DEVICE 🔙) {zstart_response}")
-    # Parsing the response for the start command
+
     response_cmd = zstart_response.decode("ascii").split("]", 1)[1]
     if response_cmd != "ZSTART[]":
-        raise Exception("ZStart command  failed.")
+        raise Exception("ZStart command failed.")
     if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, zstart command  failed.")
-    print("Start command successful.")
+        raise Exception(f"Periodic messages received, zstart command failed.\n{periodic_msgs}")
+    print("Compact start command successful.")
 
     print("Printing all periodic messages...")
     timeout_time = time.time() + 1  # 1 second timeout
@@ -330,6 +380,24 @@ def test_zstart_stop(ubit_serial):
     print("Stop command successful.")
 
 
+# TODO: This is not fully implemented yet in the hex
+"""
+def test_zstart_error(ubit_serial):
+    print("\nSending erroneous compact start command.")
+    sent_zstart, zstart_response, periodic_msgs = send_command(ubit_serial, "ZSTART[Z]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_zstart}")
+    if not zstart_response:
+        raise Exception("ZStart command failed.")
+    print(f"\t(DEVICE 🔙) {zstart_response}")
+
+    response_cmd = zstart_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != "ERROR[1]":
+        raise Exception("ZStart command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, zstart command failed.")
+    print("Erroneous compact start command successful.")
+"""
+
 def main():
     print("Connecting to device serial..")
     microbit_port = find_microbit_serial_port()
@@ -346,11 +414,15 @@ def main():
 
     test_handshake(ubit_serial)
     test_radio_frequency(ubit_serial)
+    test_radio_frequency_error(ubit_serial)
     test_periodic_ms(ubit_serial)
+    test_periodic_error(ubit_serial)
     test_sw_version(ubit_serial)
     test_hw_version(ubit_serial)
     test_start_stop(ubit_serial)
+    test_start_error(ubit_serial)
     test_zstart_stop(ubit_serial)
+    # test_zstart_error(ubit_serial)
 
     return 0
 
