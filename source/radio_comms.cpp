@@ -161,7 +161,7 @@ void radiotx_mainLoop(uint8_t radio_frequency) {
         if (uBit.buttonA.isPressed()) {
             broadcast_sensors = !broadcast_sensors;
             uBit.display.print(broadcast_sensors ? IMG_RUNNING : IMG_WAITING);
-            uBit.sleep(200);
+            uBit.sleep(300);
         }
 #endif
 

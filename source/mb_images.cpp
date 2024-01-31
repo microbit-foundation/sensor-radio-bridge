@@ -8,6 +8,14 @@ static const char * const heart =
     "000,000,255,000,000\n";
 const MicroBitImage IMG_HEART(heart);
 
+static const char * const happy =
+    "000,000,000,000,000\n"
+    "000,255,000,255,000\n"
+    "000,000,000,000,000\n"
+    "255,000,000,000,255\n"
+    "000,255,255,255,000\n";
+const MicroBitImage IMG_HAPPY(happy);
+
 static const char * const diamond =
     "000,000,255,000,000\n"
     "000,255,000,255,000\n"

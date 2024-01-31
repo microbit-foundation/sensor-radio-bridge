@@ -28,12 +28,12 @@ extern MicroBit uBit;
 #define RADIO_REMOTE            1
 #define RADIO_BRIDGE            0
 #define DEV_MODE                0
-#define IMG_RUNNING             IMG_HEART
+#define IMG_RUNNING             IMG_HAPPY
 #elif PROJECT_BUILD_TYPE == BUILD_RADIO_REMOTE_DEV
 #define RADIO_REMOTE            1
 #define RADIO_BRIDGE            0
 #define DEV_MODE                1
-#define IMG_RUNNING             IMG_HEART
+#define IMG_RUNNING             IMG_HAPPY
 #elif PROJECT_BUILD_TYPE == BUILD_RADIO_BRIDGE
 #define RADIO_REMOTE            0
 #define RADIO_BRIDGE            1
