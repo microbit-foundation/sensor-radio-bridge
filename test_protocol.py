@@ -73,6 +73,7 @@ def send_command(ubit_serial, command, wait_response=True, timeout=5):
     while time.time() < timeout_time:
         serial_line = ubit_serial.readline()
         if len(serial_line) > 0:
+            print(serial_line)
             if serial_line.startswith(expected_response_start):
                 return cmd[:-1], serial_line[:-1], periodic_messages
             elif serial_line.startswith(b"t["):
@@ -97,7 +98,7 @@ def test_handshake(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending handshake.")
+    print("\nSending handshake.")
     sent_handshake, handshake_response, periodic_msgs = send_command(ubit_serial, "HS[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_handshake}")
     if not handshake_response:
@@ -118,18 +119,50 @@ def test_radio_frequency(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending radio frequency command.")
-    random_freq = random.randint(0, 255)
-    # FIXME: This is a hack to make sure the frequency is always the same between tests
-    random_freq = 42
-    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{random_freq}]", wait_response=True)
+    # First read the current radio frequency
+    print("\nSending radio frequency (read) command.")
+    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, "RF[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_radio_freq}")
     if not radio_freq_response:
         raise Exception("Set Radio Frequency command failed.")
     print(f"\t(DEVICE 🔙) {radio_freq_response}")
     # Parsing the response for the start command
     response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
-    if response_cmd != f"RF[{random_freq}]":
+    if not response_cmd.startswith("RF["):
+        raise Exception("Radio Frequency command  failed.")
+    original_radio_frequency = int(response_cmd.split("[", 1)[1][:-1])
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, start command  failed.")
+    print("Radio Frequency command successful.")
+
+    # Now set a radio frequency to the same value received
+    print("Sending received radio frequency command.")
+    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{original_radio_frequency}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_radio_freq}")
+    if not radio_freq_response:
+        raise Exception("Set Radio Frequency command failed.")
+    print(f"\t(DEVICE 🔙) {radio_freq_response}")
+    # Parsing the response for the start command
+    response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"RF[{original_radio_frequency}]":
+        raise Exception("Radio Frequency command  failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, start command  failed.")
+    print("Radio Frequency command successful.")
+
+    # Now try to set a random radio frequency, which should not work
+    print("Sending random radio frequency command.")
+    random_freq = original_radio_frequency
+    while random_freq == original_radio_frequency:
+        random_freq = random.randint(0, 83)
+    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{random_freq}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_radio_freq}")
+    if not radio_freq_response:
+        raise Exception("Set Radio Frequency command failed.")
+    print(f"\t(DEVICE 🔙) {radio_freq_response}")
+    # Parsing the response for the start command, which should be the original frequency
+    response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"RF[{original_radio_frequency}]":
         raise Exception("Radio Frequency command  failed.")
     if len(periodic_msgs) != 0:
         raise Exception("Periodic messages received, start command  failed.")
@@ -142,7 +175,7 @@ def test_periodic_ms(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending periodic message period in milliseconds.")
+    print("\nSending periodic message period in milliseconds.")
     sent_period, period_response, periodic_msgs = send_command(ubit_serial, "PER[20]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_period}")
     if not period_response:
@@ -163,7 +196,7 @@ def test_sw_version(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending software version command.")
+    print("\nSending software version command.")
     sent_sw_version, sw_version_response, periodic_msgs = send_command(ubit_serial, "SWVER[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_sw_version}")
     if not sw_version_response:
@@ -184,7 +217,7 @@ def test_hw_version(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending hardware version command.")
+    print("\nSending hardware version command.")
     sent_hw_version, hw_version_response, periodic_msgs = send_command(ubit_serial, "HWVER[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_hw_version}")
     if not hw_version_response:
@@ -205,7 +238,7 @@ def test_start_stop(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending start command.")
+    print("\nSending start command.")
     sent_start, start_response, periodic_msgs = send_command(ubit_serial, "START[PABFMLTS]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_start}")
     if not start_response:
@@ -253,7 +286,7 @@ def test_zstart_stop(ubit_serial):
 
     :param ubit_serial: The serial connection to the micro:bit.
     """
-    print("Sending compact start command.")
+    print("\nSending compact start command.")
     sent_zstart, zstart_response, periodic_msgs = send_command(ubit_serial, "ZSTART[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_zstart}")
     if not zstart_response:

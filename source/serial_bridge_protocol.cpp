@@ -190,7 +190,7 @@ static int sbp_generateErrorResponseStr(const sbp_cmd_t *cmd, char *str_buffer, 
 }
 
 /**
- * @brief Process a command message to generate the appropriate response message.
+ * @brief Process a command to generate the appropriate response message.
  * 
  * @param received_cmd The command message to respond to.
  * @param protocol_state The current state of the protocol.
@@ -209,15 +209,21 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(received_cmd, SBP_PROTOCOL_VERSION, 1, str_buffer, str_buffer_len);
         }
         case SBP_CMD_RADIOFREQ: {
-            int radio_frequency;
-            int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &radio_frequency);
-            if (result != SBP_SUCCESS || radio_frequency < SBP_CMD_RADIO_FREQ_MIN || radio_frequency > SBP_CMD_RADIO_FREQ_MAX) {
-                return SBP_ERROR_CMD_VALUE;
-            }
-            protocol_state->radio_frequency = (uint8_t)radio_frequency;
+            // This command has two modes:
+            // 1. An empty value - it returns the current frequency
+            // 2. A value - it sets the frequency and returns the final frequency configured
+            //    If the frequency was already saved to flash it cannot be changed, so this value might be different
+            if (received_cmd->value_len != 0) {
+                int radio_frequency;
+                int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &radio_frequency);
+                if (result != SBP_SUCCESS || radio_frequency < SBP_CMD_RADIO_FREQ_MIN || radio_frequency > SBP_CMD_RADIO_FREQ_MAX) {
+                    return SBP_ERROR_CMD_VALUE;
+                }
+                protocol_state->radio_frequency = (uint8_t)radio_frequency;
 
-            if (cmd_cbk.radiofrequency && cmd_cbk.radiofrequency(protocol_state) != SBP_SUCCESS) {
-                return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
+                if (cmd_cbk.radiofrequency && cmd_cbk.radiofrequency(protocol_state) != SBP_SUCCESS) {
+                    return sbp_generateErrorResponseStr(received_cmd, str_buffer, str_buffer_len);
+                }
             }
 
             // Convert protocol_state->radio_frequency into a string

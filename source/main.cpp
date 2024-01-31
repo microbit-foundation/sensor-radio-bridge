@@ -151,7 +151,6 @@ int storeRadioFrequency(sbp_state_s *protocol_state) {
             uBit.panic(233);
         }
         protocol_state->radio_frequency = (uint8_t)*stored_radio_freq;
-        // uBit.panic(234);
     }
     return SBP_SUCCESS;
 }
