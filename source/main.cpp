@@ -12,10 +12,8 @@ MicroBit uBit;
 // Configure how many milliseconds to leave as a buffer for accurate periodic messages
 static const int PERIODIC_BUFFER_MS = 9;
 
-static const int SERIAL_BUFFER_LEN = 128;
-
-// Last 1 KB of flash where we can store the radio frequency
-const uint32_t RADIO_FREQ_ADDR = 0x0007FC00;
+// Last 1 KB of flash where we can store the radio frequency and/or remote micro:bit ID
+const uint32_t REMOTE_MB_ID_ADDR = 0x0007FC00;
 
 // Storing a list of active micro:bit IDs sending radio data
 #if CONFIG_ENABLED(RADIO_BRIDGE)
@@ -28,6 +26,9 @@ static size_t active_mb_id_i = MB_IDS_LEN;
 #endif
 
 static sbp_sensor_data_t sensor_data = { };
+
+// Function declarations
+int setRadioFrequency(sbp_state_s *protocol_state);
 
 
 /**
@@ -125,32 +126,25 @@ static void radioDataCallback(radio_packet_t *radio_packet) {
 #endif
 
 /**
- * @brief Stores the radio frequency in flash, for permanence after reset or power off.
- * 
- * TODO: The panics in this function are useful for development, but for the final
- *       release version they should be removed and simply use the given radio frequency.
+ * @brief Stores the remote micro:bit ID into flash (NVM),
+ * for permanence after reset or power off.
  *
- * @param protocol_state The protocol state with the updated radio frequency value.
+ * @param protocol_state The protocol state with the updated remote micro:bit ID value.
  *
- * @return SBP_SUCCESS if the radio frequency was stored successfully, an error value otherwise.
+ * @return SBP_SUCCESS if the remote micro:bit was stored successfully, an error value otherwise.
  */
-int storeRadioFrequency(sbp_state_s *protocol_state) {
-    uint32_t *stored_radio_freq = (uint32_t *)RADIO_FREQ_ADDR;
-    if (*stored_radio_freq == 0xFFFFFFFF) {
-        uint32_t radio_freq = protocol_state->radio_frequency;
+int storeRemoteMbId(sbp_state_s *protocol_state) {
+    uint32_t *stored_remote_mb_id = (uint32_t *)REMOTE_MB_ID_ADDR;
+    if (*stored_remote_mb_id == 0xFFFFFFFF) {
+        uint32_t remote_mb_id = protocol_state->remote_id;
         MicroBitFlash flash;
-        int success = flash.flash_write((void *)RADIO_FREQ_ADDR, (void *)&radio_freq, 4, NULL);
-        if (success != MICROBIT_OK) uBit.panic(230);
-        if (*stored_radio_freq != radio_freq) uBit.panic(231);
-
-        success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
-        if (success != MICROBIT_OK) uBit.panic(232);
-    } else if ((uint32_t)protocol_state->radio_frequency != *stored_radio_freq) {
-        // TODO: Right now responds with stored frequency, but it should probably be an error
-        if (*stored_radio_freq > SBP_CMD_RADIO_FREQ_MAX) {
-            uBit.panic(233);
-        }
-        protocol_state->radio_frequency = (uint8_t)*stored_radio_freq;
+        int success = flash.flash_write((void *)REMOTE_MB_ID_ADDR, (void *)&remote_mb_id, 4, NULL);
+        if (success != MICROBIT_OK) return SBP_ERROR_INTERNAL;
+        if (*stored_remote_mb_id != remote_mb_id) return SBP_ERROR_INTERNAL;
+    } else if ((uint32_t)protocol_state->remote_id != *stored_remote_mb_id) {
+        // We received a different ID than what we have stored, so reject it
+        protocol_state->remote_id = *stored_remote_mb_id;
+        return SBP_ERROR_CMD_REPEATED;
     }
     return SBP_SUCCESS;
 }
@@ -159,18 +153,58 @@ int storeRadioFrequency(sbp_state_s *protocol_state) {
  * @brief Get the Radio Frequency from Non Volatile Memory, or the default
  * value if not set in NVM.
  *
+ * The default value, if noting stored in NVM, will be the unique ID from
+ * this micro:bit. This is statistically less likely to match the remote ID
+ * than picking a number like 0.
+ *
+ * @return The radio frequency.
+ */
+uint32_t getRemoteMbId() {
+    uint32_t *stored_remote_mb_id = (uint32_t *)REMOTE_MB_ID_ADDR;
+    if (*stored_remote_mb_id == 0xFFFFFFFF) {
+        return microbit_serial_number();
+    }
+    return *stored_remote_mb_id;
+}
+
+/**
+ * @brief Saves the remote micro:bit ID into Non Volatile Memory, and
+ * configures the radio frequency based on this value.
+ *
+ * @param protocol_state The protocol state with the updated remote ID value.
+ *
+ * @return SBP_SUCCESS if the remote micro:bit ID was set successfully, an error value otherwise.
+ */
+int setRemoteMbId(sbp_state_s *protocol_state) {
+    int result = storeRemoteMbId(protocol_state);
+    if (result < SBP_SUCCESS) return result;
+
+    protocol_state->radio_frequency = radio_getFrequencyFromId(protocol_state->remote_id);
+    return setRadioFrequency(protocol_state);
+}
+
+/**
+ * @brief Get the radio frequency from the configured ID of the remote
+ * micro:bit.
+ *
  * @return The radio frequency.
  */
 uint8_t getRadioFrequency() {
-    uint32_t *stored_radio_freq = (uint32_t *)RADIO_FREQ_ADDR;
-    if (*stored_radio_freq == 0xFFFFFFFF) {
-        return SBP_DEFAULT_RADIO_FREQ;
-    } else if (*stored_radio_freq > SBP_CMD_RADIO_FREQ_MAX) {
-        uBit.panic(234);
-        return 0;
-    } else {
-        return (uint8_t)*stored_radio_freq;
-    }
+    return radio_getFrequencyFromId(getRemoteMbId());
+}
+
+/**
+ * @brief Sets the radio frequency configured in the protocol state.
+ *
+ * @param protocol_state The protocol state with the updated radio frequency.
+ *
+ * @return SBP_SUCCESS if the radio frequency was set successfully, an error
+ *         value otherwise.
+ */
+int setRadioFrequency(sbp_state_s *protocol_state) {
+    int success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
+    if (success != MICROBIT_OK) return SBP_ERROR_INTERNAL;
+    return SBP_SUCCESS;
 }
 
 /**
@@ -222,6 +256,7 @@ int main() {
 
     uBit.display.print(IMG_WAITING);
 
+    const int SERIAL_BUFFER_LEN = 128;
     uBit.serial.setTxBufferSize(SERIAL_BUFFER_LEN);
     uBit.serial.setRxBufferSize(SERIAL_BUFFER_LEN);
     uBit.serial.setBaudrate(115200);
@@ -230,9 +265,10 @@ int main() {
     char serial_data[serial_data_len];
 
     sbp_state_t protocol_state = {
-        .radio_frequency = getRadioFrequency(),
         .send_periodic = SBP_DEFAULT_SEND_PERIODIC,
         .periodic_compact = SBP_DEFAULT_PERIODIC_Z,
+        .radio_frequency = getRadioFrequency(),
+        .remote_id = getRemoteMbId(),
         .period_ms = SBP_DEFAULT_PERIOD_MS,
         // TODO: Get the hardware version from the micro:bit DAL/CODAL
         .hw_version = 2,
@@ -240,14 +276,14 @@ int main() {
         .sensors = { },
     };
     sbp_cmd_callbacks_t protocol_callbacks = { };
-    protocol_callbacks.radiofrequency = storeRadioFrequency;
+    protocol_callbacks.radioFrequency = setRadioFrequency;
+    protocol_callbacks.remoteMbId = setRemoteMbId;
 
     int init_success = sbp_init(&protocol_callbacks, &protocol_state);
     if (init_success < SBP_SUCCESS) uBit.panic(200);
 
 #if CONFIG_ENABLED(RADIO_REMOTE)
-    // For now, the radio sender hex only sends accelerometer + button data in an infinite loop
-    radiotx_mainLoop(protocol_state.radio_frequency);
+    radiotx_mainLoop();
 #elif CONFIG_ENABLED(RADIO_BRIDGE)
     radiobridge_init(radioDataCallback, protocol_state.radio_frequency);
 #endif

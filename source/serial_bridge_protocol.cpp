@@ -231,7 +231,7 @@ static int sbp_processCommandResponse(
                 }
                 protocol_state->radio_frequency = (uint8_t)radio_frequency;
 
-                if (cmd_cbk.radiofrequency && cmd_cbk.radiofrequency(protocol_state) != SBP_SUCCESS) {
+                if (cmd_cbk.radioFrequency && cmd_cbk.radioFrequency(protocol_state) != SBP_SUCCESS) {
                     return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
             }
@@ -243,6 +243,38 @@ static int sbp_processCommandResponse(
 
             return sbp_generateResponseStr(
                     received_cmd, response_radio_frequency, frequency_str_len, str_buffer, str_buffer_len);
+        }
+        case SBP_CMD_REMOTEID: {
+            // Empty value indicates a read command only
+            if (received_cmd->value_len != 0) {
+                int remote_microbit_id;
+                int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &remote_microbit_id);
+                if (result != SBP_SUCCESS) {
+                    return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
+                }
+                protocol_state->remote_id = (uint32_t)remote_microbit_id;
+
+                if (cmd_cbk.remoteMbId) {
+                    int result = cmd_cbk.remoteMbId(protocol_state);
+                    if (result < SBP_SUCCESS) {
+                        uint8_t error_code;
+                        switch (result) {
+                            case SBP_ERROR_CMD_REPEATED: error_code = SBP_ERROR_CODE_VALUE_ALREADY_SET; break;
+                            case SBP_ERROR_INTERNAL:     error_code = SBP_ERROR_CODE_INTERNAL_ERROR; break;
+                            default:                     error_code = SBP_ERROR_CODE_INVALID_VALUE; break;
+                        }
+                        return sbp_generateErrorResponseStr(received_cmd, error_code, str_buffer, str_buffer_len);
+                    }
+                }
+            }
+
+            // Convert protocol_state->remote_id into a string, range -2,147,483,648 to 2,147,483,647
+            char response_mb_id[12] = { 0 };
+            size_t mb_id_str_len = snprintf(response_mb_id, 12, "%d", (int)protocol_state->remote_id);
+            if (mb_id_str_len < 1) return SBP_ERROR_ENCODING;
+
+            return sbp_generateResponseStr(
+                    received_cmd, response_mb_id, mb_id_str_len, str_buffer, str_buffer_len);
         }
         case SBP_CMD_PERIOD: {
             int period_ms;

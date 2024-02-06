@@ -21,10 +21,14 @@
 #define SBP_ERROR_MSG_TYPE          (-5)
 #define SBP_ERROR_CMD_TYPE          (-6)
 #define SBP_ERROR_CMD_VALUE         (-7)
-#define SBP_ERROR_NOT_IMPLEMENTED   (-8)
+#define SBP_ERROR_CMD_REPEATED      (-8)
+#define SBP_ERROR_INTERNAL          (-9)
+#define SBP_ERROR_NOT_IMPLEMENTED   (-100)
 
 /** External error codes */
 #define SBP_ERROR_CODE_INVALID_VALUE        1
+#define SBP_ERROR_CODE_VALUE_ALREADY_SET    2
+#define SBP_ERROR_CODE_INTERNAL_ERROR       3
 
 #define SBP_MSG_SEPARATOR           "\n"
 #define SBP_MSG_SEPARATOR_LEN       (sizeof(SBP_MSG_SEPARATOR) - 1)
@@ -53,6 +57,7 @@ const char sbp_msg_type_char[SBP_MSG_TYPE_LEN] = {
 typedef enum sbp_cmd_type_e {
     SBP_CMD_HANDSHAKE,
     SBP_CMD_RADIOFREQ,
+    SBP_CMD_REMOTEID,
     SBP_CMD_PERIOD,
     SBP_CMD_SWVERSION,
     SBP_CMD_HWVERSION,
@@ -65,6 +70,7 @@ typedef enum sbp_cmd_type_e {
 const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
     "HS",       // SBP_CMD_HANDSHAKE
     "RF",       // SBP_CMD_RADIOFREQ
+    "RMBID",    // SBP_CMD_REMOTEID
     "PER",      // SBP_CMD_PERIOD
     "SWVER",    // SBP_CMD_SWVERSION
     "HWVER",    // SBP_CMD_HWVERSION
@@ -87,7 +93,8 @@ typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
 // For symmetry this would include an entry per command, but in reality
 //  we are not going to use the rest
 typedef struct sbp_cmd_callback_s {
-    sbp_cmd_callback_t radiofrequency = NULL;
+    sbp_cmd_callback_t radioFrequency = NULL;
+    sbp_cmd_callback_t remoteMbId = NULL;
 } sbp_cmd_callbacks_t;
 
 /**
@@ -204,10 +211,11 @@ typedef struct sbp_sensor_data_s {
  * @brief Structure to hold the state of the protocol data.
  */
  typedef struct sbp_state_s {
-    uint8_t radio_frequency ;
-    bool send_periodic ;
-    bool periodic_compact ;
-    uint16_t period_ms ;
+    bool send_periodic;
+    bool periodic_compact;
+    uint8_t radio_frequency;
+    uint32_t remote_id;
+    uint16_t period_ms;
     uint8_t hw_version;
     char *sw_version;
     sbp_sensors_t sensors;

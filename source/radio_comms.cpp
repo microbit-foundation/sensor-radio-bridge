@@ -140,11 +140,13 @@ static void radiotx_onRadioData(MicroBitEvent e) {
     radiotx_cmd_functions[received_cmd.cmd_type](&received_cmd.cmd_data);
 }
 
-void radiotx_mainLoop(uint8_t radio_frequency) {
+void radiotx_mainLoop() {
     radiotx_cmd_functions[RADIO_CMD_BLINK] = radiotx_cmd_blink;
 
+    // Configure the radio, and configure frequency based on this micro:bit's ID
     uBit.radio.enable();
     uBit.radio.setTransmitPower(MICROBIT_RADIO_POWER_LEVELS - 1);
+    uint8_t radio_frequency = radio_getFrequencyFromId(microbit_serial_number());
     uBit.radio.setFrequencyBand(radio_frequency);
     uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, radiotx_onRadioData);
 

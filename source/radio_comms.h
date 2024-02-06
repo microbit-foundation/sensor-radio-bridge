@@ -4,6 +4,8 @@
 #include "cmsis_compiler.h"
 #include "main.h"
 
+#define MAX_RADIO_FREQUENCY 83
+
 /**
  * @brief List of radio packet types
  */
@@ -113,5 +115,16 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
  * @brief Runs the main loop for a the radio sender, where it just sends
  * sensor data in an infinite loop.
  */
-void radiotx_mainLoop(uint8_t radio_frequency);
+void radiotx_mainLoop();
 #endif
+
+/**
+ * @brief Calculates the radio frequency based on the micro:bit unique ID.
+ *
+ * @param id The micro:bit ID to get the frequency from.
+ *
+ * @return The frequency value, between 0 and MAX_RADIO_FREQUENCY.
+ */
+inline uint8_t radio_getFrequencyFromId(uint32_t id)  {
+    return id % MAX_RADIO_FREQUENCY;
+}

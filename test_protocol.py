@@ -124,7 +124,7 @@ def test_radio_frequency(ubit_serial):
     sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, "RF[]", wait_response=True)
     print(f"\t(SENT   ➡️) {sent_radio_freq}")
     if not radio_freq_response:
-        raise Exception("Set Radio Frequency command failed.")
+        raise Exception("Get Radio Frequency command failed.")
     print(f"\t(DEVICE 🔙) {radio_freq_response}")
 
     response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
@@ -135,22 +135,7 @@ def test_radio_frequency(ubit_serial):
         raise Exception("Periodic messages received, radio frequency command failed.")
     print("Radio Frequency command successful.")
 
-    # Now set a radio frequency to the same value received
-    print("Sending received radio frequency command.")
-    sent_radio_freq, radio_freq_response, periodic_msgs = send_command(ubit_serial, f"RF[{original_radio_frequency}]", wait_response=True)
-    print(f"\t(SENT   ➡️) {sent_radio_freq}")
-    if not radio_freq_response:
-        raise Exception("Set Radio Frequency command failed.")
-    print(f"\t(DEVICE 🔙) {radio_freq_response}")
-
-    response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
-    if response_cmd != f"RF[{original_radio_frequency}]":
-        raise Exception("Radio Frequency command failed.")
-    if len(periodic_msgs) != 0:
-        raise Exception("Periodic messages received, radio frequency command failed.")
-    print("Radio Frequency command successful.")
-
-    # Now try to set a random radio frequency, which should not work
+    # Send a random radio frequency
     print("Sending random radio frequency command.")
     random_freq = original_radio_frequency
     while random_freq == original_radio_frequency:
@@ -162,11 +147,11 @@ def test_radio_frequency(ubit_serial):
     print(f"\t(DEVICE 🔙) {radio_freq_response}")
     # Parsing the response, which should be the original frequency
     response_cmd = radio_freq_response.decode("ascii").split("]", 1)[1]
-    if response_cmd != f"RF[{original_radio_frequency}]":
+    if response_cmd == f"RF[{original_radio_frequency}]":
         raise Exception("Radio Frequency command failed.")
     if len(periodic_msgs) != 0:
         raise Exception("Periodic messages received, radio frequency command failed.")
-    print("Radio Frequency command successful.")
+    print("Radio Frequency command with random value successful.")
 
 
 def test_radio_frequency_error(ubit_serial):
@@ -185,6 +170,78 @@ def test_radio_frequency_error(ubit_serial):
     if len(periodic_msgs) != 0:
         raise Exception("Periodic messages received, radio frequency command failed.")
     print("Radio Frequency error command successful.")
+
+
+def test_remote_microbit_id(ubit_serial):
+    """
+    Test the radio frequency command.
+
+    :param ubit_serial: The serial connection to the micro:bit.
+    """
+    # First read the configure micro:bit ID, this is likely the default value
+    print("\nSending Remote micro:bit ID (read) command.")
+    sent_mb_id, mb_id_response, periodic_msgs = send_command(ubit_serial, "RMBID[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_mb_id}")
+    if not mb_id_response:
+        raise Exception("Get Remote micro:bit ID command failed.")
+    print(f"\t(DEVICE 🔙) {mb_id_response}")
+
+    response_cmd = mb_id_response.decode("ascii").split("]", 1)[1]
+    if not response_cmd.startswith("RMBID["):
+        raise Exception("Remote micro:bit ID command failed.")
+    original_remote_mb_id = int(response_cmd.split("[", 1)[1][:-1])
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, radio frequency command failed.")
+    print("Radio Frequency command successful.")
+
+    # Now set the Remote micro:bit ID value received
+    print("Sending Remote micro:bit ID command.")
+    sent_mb_id, mb_id_response, periodic_msgs = send_command(ubit_serial, f"RMBID[{original_remote_mb_id}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_mb_id}")
+    if not mb_id_response:
+        raise Exception("Set Remote micro:bit ID command failed.")
+    print(f"\t(DEVICE 🔙) {mb_id_response}")
+
+    response_cmd = mb_id_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"RMBID[{original_remote_mb_id}]":
+        raise Exception("Remote micro:bit ID command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, radio frequency command failed.")
+    print("Remote micro:bit ID command successful.")
+
+    # Now try to set a random Remote micro:bit ID, which should not work
+    print("Sending random Remote micro:bit ID command.")
+    random_id = original_remote_mb_id
+    while random_id == original_remote_mb_id:
+        # signed 32 bit integer min and max values
+        random_id = random.randint(pow(2, 31) * -1, pow(2, 31) - 1)
+    sent_mb_id, mb_id_response, periodic_msgs = send_command(ubit_serial, f"RMBID[{random_id}]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_mb_id}")
+    if not mb_id_response:
+        raise Exception("Set Remote micro:bit ID command failed.")
+    print(f"\t(DEVICE 🔙) {mb_id_response}")
+    # Parsing the response, which should be the original frequency
+    response_cmd = mb_id_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"ERROR[2]":
+        raise Exception("Remote micro:bit ID command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, radio frequency command failed.")
+    print("Remote micro:bit ID command successful.")
+
+    # And check that the remote micro:bit ID hasn't changed
+    print("\nSending Remote micro:bit ID (read) command.")
+    sent_mb_id, mb_id_response, periodic_msgs = send_command(ubit_serial, "RMBID[]", wait_response=True)
+    print(f"\t(SENT   ➡️) {sent_mb_id}")
+    if not mb_id_response:
+        raise Exception("Get Remote micro:bit ID command failed.")
+    print(f"\t(DEVICE 🔙) {mb_id_response}")
+
+    response_cmd = mb_id_response.decode("ascii").split("]", 1)[1]
+    if response_cmd != f"RMBID[{original_remote_mb_id}]":
+        raise Exception("Remote micro:bit ID command failed.")
+    if len(periodic_msgs) != 0:
+        raise Exception("Periodic messages received, radio frequency command failed.")
+    print("Remote micro:bit ID command successful.")
 
 
 def test_periodic_ms(ubit_serial):
@@ -415,6 +472,7 @@ def main():
     test_handshake(ubit_serial)
     test_radio_frequency(ubit_serial)
     test_radio_frequency_error(ubit_serial)
+    test_remote_microbit_id(ubit_serial)
     test_periodic_ms(ubit_serial)
     test_periodic_error(ubit_serial)
     test_sw_version(ubit_serial)
