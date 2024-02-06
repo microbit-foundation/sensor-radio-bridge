@@ -216,6 +216,7 @@ static int sbp_processCommandResponse(
 ) {
     switch (received_cmd->type) {
         case SBP_CMD_HANDSHAKE: {
+            // TODO: Return an error if the value is not empty
             return sbp_generateResponseStr(received_cmd, SBP_PROTOCOL_VERSION, 1, str_buffer, str_buffer_len);
         }
         case SBP_CMD_RADIOFREQ: {
@@ -276,7 +277,22 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(
                     received_cmd, response_mb_id, mb_id_str_len, str_buffer, str_buffer_len);
         }
+        case SBP_CMD_ID: {
+            // This is a read-only command and only accepts empty values
+            if (received_cmd->value_len != 0) {
+                return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
+            }
+
+            // Convert protocol_state->id into a string, range -2,147,483,648 to 2,147,483,647
+            char response_mb_id[12] = { 0 };
+            size_t mb_id_str_len = snprintf(response_mb_id, 12, "%d", (int)protocol_state->id);
+            if (mb_id_str_len < 1) return SBP_ERROR_ENCODING;
+
+            return sbp_generateResponseStr(
+                    received_cmd, response_mb_id, mb_id_str_len, str_buffer, str_buffer_len);
+        }
         case SBP_CMD_PERIOD: {
+            // TODO: Make this also a "get" command when value is empty?
             int period_ms;
             int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &period_ms);
             if (result != SBP_SUCCESS || period_ms < SBP_CMD_PERIOD_MIN || period_ms > SBP_CMD_PERIOD_MAX) {
@@ -293,10 +309,12 @@ static int sbp_processCommandResponse(
                     received_cmd, response_period, period_str_len, str_buffer, str_buffer_len);
         }
         case SBP_CMD_SWVERSION: {
+            // TODO: Return an error if the value is not empty
             // TODO: Need to sort out versions that are not single digit, e.g. 1.2.3
             return sbp_generateResponseStr(received_cmd, protocol_state->sw_version, 5, str_buffer, str_buffer_len);
         }
         case SBP_CMD_HWVERSION: {
+            // TODO: Return an error if the value is not empty
             // Convert protocol_state->hw_version (uint8) to a string
             char response_hw_version[4] = { 0 };
             size_t hw_version_str_len = snprintf(response_hw_version, 6, "%d", protocol_state->hw_version);
@@ -336,6 +354,7 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         case SBP_CMD_STOP: {
+            // TODO: Return an error if the value is not empty
             protocol_state->send_periodic = false;
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }

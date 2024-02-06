@@ -269,6 +269,7 @@ int main() {
         .periodic_compact = SBP_DEFAULT_PERIODIC_Z,
         .radio_frequency = getRadioFrequency(),
         .remote_id = getRemoteMbId(),
+        .id = microbit_serial_number(),
         .period_ms = SBP_DEFAULT_PERIOD_MS,
         // TODO: Get the hardware version from the micro:bit DAL/CODAL
         .hw_version = 2,

@@ -58,6 +58,7 @@ typedef enum sbp_cmd_type_e {
     SBP_CMD_HANDSHAKE,
     SBP_CMD_RADIOFREQ,
     SBP_CMD_REMOTEID,
+    SBP_CMD_ID,
     SBP_CMD_PERIOD,
     SBP_CMD_SWVERSION,
     SBP_CMD_HWVERSION,
@@ -71,6 +72,7 @@ const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
     "HS",       // SBP_CMD_HANDSHAKE
     "RF",       // SBP_CMD_RADIOFREQ
     "RMBID",    // SBP_CMD_REMOTEID
+    "MBID",     // SBP_CMD_ID
     "PER",      // SBP_CMD_PERIOD
     "SWVER",    // SBP_CMD_SWVERSION
     "HWVER",    // SBP_CMD_HWVERSION
@@ -215,9 +217,10 @@ typedef struct sbp_sensor_data_s {
     bool periodic_compact;
     uint8_t radio_frequency;
     uint32_t remote_id;
+    const uint32_t id;
     uint16_t period_ms;
-    uint8_t hw_version;
-    char *sw_version;
+    const uint8_t hw_version;
+    const char *sw_version;
     sbp_sensors_t sensors;
 } sbp_state_t;
 

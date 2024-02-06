@@ -25,19 +25,6 @@ def find_microbit_serial_port():
     return None
 
 
-def print_all_serial_received(ubit_serial):
-    """
-    Print all the serial data received until the PC buffers are empty.
-
-    :param ubit_serial: The serial connection to the micro:bit.
-    """
-    serial_line = ubit_serial.readline()
-    while serial_line:
-        print(f'(DEVICE 🔙) {serial_line.decode("ascii")}', end="")
-        serial_line = ubit_serial.readline()
-
-
-
 def send_command(ubit_serial, command, wait_response=True, timeout=5):
     """
     Send a command to the micro:bit and wait for a response.
@@ -157,12 +144,11 @@ def test_remote_microbit_id(ubit_serial):
     # Now set the Remote micro:bit ID value received
     test_cmd(ubit_serial, "Remote micro:bit ID (set)", f"RMBID[{original_remote_mb_id}]")
     # Now try to set a random Remote micro:bit ID, which should not work
-    error_value = 2
     random_id = original_remote_mb_id
     while random_id == original_remote_mb_id:
         # signed 32 bit integer min and max values
         random_id = random.randint(pow(2, 31) * -1, pow(2, 31) - 1)
-    test_cmd(ubit_serial, "Remote micro:bit ID (set)", f"RMBID[{random_id}]", f"ERROR[{error_value}]")
+    test_cmd(ubit_serial, "Remote micro:bit ID (set)", f"RMBID[{random_id}]", f"ERROR[2]")
     # And check that the remote micro:bit ID hasn't changed
     test_cmd(ubit_serial, "Remote micro:bit ID (set)", "RMBID[]", f"RMBID[{original_remote_mb_id}]")
 
@@ -230,7 +216,10 @@ def main():
     )
     print("Connected, printing any received data (there shouldn't be any)...")
     time.sleep(0.1)
-    print_all_serial_received(ubit_serial)
+    serial_line = ubit_serial.readline()
+    while serial_line:
+        print(f'(DEVICE 🔙) {serial_line.decode("ascii")}', end="")
+        serial_line = ubit_serial.readline()
     print("Done.")
 
     ERROR_CODE = 1
@@ -241,6 +230,9 @@ def main():
     test_cmd(ubit_serial, "Radio Frequency (error)", f"RF[84]", f"ERROR[{ERROR_CODE}]")
 
     test_remote_microbit_id(ubit_serial)
+
+    test_cmd(ubit_serial, "ID", "MBID[]", check_value=False)
+    test_cmd(ubit_serial, "ID (error)", "MBID[123]", f"ERROR[{ERROR_CODE}]")
 
     test_cmd(ubit_serial, "Periodic", "PER[20]")
     test_cmd(ubit_serial, "Period (error)", "PER[5]", f"ERROR[{ERROR_CODE}]")
@@ -258,8 +250,6 @@ def main():
 
     test_zstart_stop(ubit_serial)
     # TODO: Once implemented, check error response for ZSTART command
-
-    time.sleep(0.3)
 
     return 0
 
