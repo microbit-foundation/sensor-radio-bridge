@@ -315,6 +315,12 @@ int main() {
             switchNextActiveMicrobit();
         }
 #endif
+#if CONFIG_ENABLED(DEV_MODE)
+        if (uBit.logo.isPressed()) {
+            // Useful to test ML Tool crash recovery
+            uBit.panic(0);
+        }
+#endif
 
         // If periodic messages are enabled and new data has been received, send it
         if (protocol_state.send_periodic) {

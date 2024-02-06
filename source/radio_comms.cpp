@@ -159,7 +159,7 @@ void radiotx_mainLoop() {
         }
 
 #if CONFIG_ENABLED(DEV_MODE)
-        // FIXME: For development, start or stop broadcasting data
+        // For development and testing, start or stop broadcasting data
         if (uBit.buttonA.isPressed()) {
             broadcast_sensors = !broadcast_sensors;
             uBit.display.print(broadcast_sensors ? IMG_RUNNING : IMG_WAITING);
