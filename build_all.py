@@ -6,6 +6,8 @@ with different preprocessor defines:
 - LOCAL_SENSORS
 - RADIO_BRIDGE
 - RADIO_REMOTE
+- RADIO_BRIDGE_DEV
+- RADIO_REMOTE_DEV
 """
 import os
 import sys
@@ -40,6 +42,7 @@ def clean_build(root_dir, hex_name, build_flags={}):
     for flag, value in build_flags.items():
         os.environ["CXXFLAGS"] += f" -D{flag}={value}"
     print(f"\n{'#' * 80}\n# Building: {hex_name}\n{'#' * 80}")
+    # build() exits if any system call returns a non-zero exit code
     build(clean=True, verbose=False, parallelism=os.cpu_count())
 
     # Rename the hex file to hex_name
@@ -53,13 +56,13 @@ def main():
     for hex_file in ["local-sensors.hex", "radio-bridge.hex", "radio-remote.hex"]:
         if os.path.isfile(hex_file):
             print(f"{hex_file} hex files already exist, stopping build.")
-            #return 1
+            return 1
 
-    clean_build(ROOT_DIR, "local-sensors.hex", build_flags={"PROJECT_BUILD_TYPE": "1"})
-    clean_build(ROOT_DIR, "radio-remote.hex", build_flags={"PROJECT_BUILD_TYPE": "2"})
     clean_build(ROOT_DIR, "radio-remote-dev.hex", build_flags={"PROJECT_BUILD_TYPE": "3"})
-    clean_build(ROOT_DIR, "radio-bridge.hex", build_flags={"PROJECT_BUILD_TYPE": "4"})
     clean_build(ROOT_DIR, "radio-bridge-dev.hex", build_flags={"PROJECT_BUILD_TYPE": "5"})
+    clean_build(ROOT_DIR, "radio-remote.hex", build_flags={"PROJECT_BUILD_TYPE": "2"})
+    clean_build(ROOT_DIR, "radio-bridge.hex", build_flags={"PROJECT_BUILD_TYPE": "4"})
+    clean_build(ROOT_DIR, "local-sensors.hex", build_flags={"PROJECT_BUILD_TYPE": "1"})
 
 
 if __name__ == '__main__':
