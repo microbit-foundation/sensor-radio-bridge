@@ -4,7 +4,7 @@
 
 extern MicroBit uBit;
 
-#define PROJECT_VERSION "0.1.0"
+#define PROJECT_VERSION "0.2.0"
 
 // The project type build flags will be configured via the build_all.py script
 // no need to edit any of the macros below
