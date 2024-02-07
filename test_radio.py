@@ -26,25 +26,30 @@ def flash_file(mb_path, hex_path):
 
 def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
     # First step is to flash the remote micro:bit
-    print("Flashing remote micro:bit...")
+    print("\nFlashing remote micro:bit...")
     flash_file(mb_path, remote_mb_file_path)
+    print("Done.")
 
     # And get its unique ID
-    print("Reading the remote micro:bit ID... (not yet implemented)")
+    print("\nReading the remote micro:bit ID... (not yet implemented)")
     # TODO: Currently hardcoded to a known micro:bit value
     remote_microbit_id = -1676136584
+    print("Done.")
 
-    input("Unplug remote micro:bit and plug bridge micro:bit\nPress enter to continue...")
+    input("\nUnplug remote micro:bit and plug bridge micro:bit\nPress enter to continue...")
     # Wait for the bridge micro:bit to be mounted
     if not os.path.isdir(mb_path):
         print("Waiting for bridge micro:bit to be mounted...")
         time.sleep(1)
+    time.sleep(1)
+    print("Done.")
 
     # Now flash second micro:bit
-    print("Flashing bridge micro:bit...")
+    print("\nFlashing bridge micro:bit...")
     flash_file(mb_path, bridge_mb_file_path)
+    print("Done.")
 
-    print("Connecting to device serial..")
+    print("\nConnecting to device serial...")
     microbit_port = find_microbit_serial_port()
     if not microbit_port:
         raise Exception("Could not automatically detect micro:bit port.")
@@ -52,7 +57,9 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
         microbit_port, 115200, timeout=0.5, parity=PARITY_NONE,
         stopbits=STOPBITS_ONE, rtscts=False, dsrdtr=False
     )
-    print("Connected, printing any received data (there shouldn't be any)...")
+    print("Done.")
+
+    print("\nConnected, printing any received data (there shouldn't be any)...")
     time.sleep(0.1)
     serial_line = ubit_serial.readline()
     while serial_line:
@@ -61,7 +68,7 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
     print("Done.")
 
     # Send remote micro:bit ID, but first check it's not set already
-    print("Configuring bridge micro:bit...")
+    print("\nConfiguring bridge micro:bit:")
     bridge_mb_id, _ = test_cmd(ubit_serial, "Read bridge ID", "MBID[]", check_value=False)
     received_remote_mb_id, _ = test_cmd(ubit_serial, "Read remote ID", "RMBID[]", check_value=False)
     if bridge_mb_id != received_remote_mb_id:
@@ -80,6 +87,8 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
 
     # And not start streaming
     test_cmd(ubit_serial, "Start", "START[AB]", "START[]")
+
+    print("\nAll done, receiving periodic data:")
     while True:
         serial_line = ubit_serial.readline()
         if len(serial_line) > 0:

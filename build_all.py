@@ -24,7 +24,7 @@ def clean_build(root_dir, hex_name, build_flags={}):
     build_path = Path(root_dir) / 'build'
     hex_path = Path(root_dir) / 'MICROBIT.hex'
     bin_path = Path(root_dir) / 'MICROBIT.bin'
-    nex_hex_path = Path(root_dir) / hex_name
+    new_hex_path = Path(root_dir) / hex_name
 
     # Clean the build directory
     shutil.rmtree(build_path, ignore_errors=True)
@@ -46,7 +46,7 @@ def clean_build(root_dir, hex_name, build_flags={}):
     build(clean=True, verbose=False, parallelism=os.cpu_count())
 
     # Rename the hex file to hex_name
-    os.rename(hex_path, Path(root_dir) / hex_name)
+    os.rename(hex_path, new_hex_path)
 
 
 def main():
