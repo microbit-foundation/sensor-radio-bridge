@@ -116,6 +116,9 @@ def test_cmd(ubit_serial, cmd_name, cmd, expected_response=None, check_value=Tru
             raise Exception(f"{cmd_name} command failed, expected response to "
                             f"start with '{response_start}' but got '{response_cmd}'")
     if periodic_error and len(periodic_msgs) != 0:
+        print(f"Periodic messages received while processing command: {sent_cmd}")
+        for periodic_msg in periodic_msgs:
+            print(f"\t(DEVICE ❌) {periodic_msg}")
         raise Exception(f"Periodic messages received, {cmd_name} command failed.")
     print(f"{cmd_name} command successful.")
 
@@ -227,15 +230,18 @@ def main():
     test_cmd(ubit_serial, "Handshake", "HS[]", "HS[1]")
 
     test_radio_frequency(ubit_serial)
-    test_cmd(ubit_serial, "Radio Frequency (error)", f"RF[84]", f"ERROR[{ERROR_CODE}]")
+    test_cmd(ubit_serial, "Radio Frequency (error 1)", "RF[84]", f"ERROR[{ERROR_CODE}]")
+    test_cmd(ubit_serial, "Radio Frequency (error 2)", "RF[-1]", f"ERROR[{ERROR_CODE}]")
 
     test_remote_microbit_id(ubit_serial)
+    test_cmd(ubit_serial, "Remote MB ID (error)", "MBID[-1]", f"ERROR[{ERROR_CODE}]")
 
     test_cmd(ubit_serial, "ID", "MBID[]", check_value=False)
     test_cmd(ubit_serial, "ID (error)", "MBID[123]", f"ERROR[{ERROR_CODE}]")
 
     test_cmd(ubit_serial, "Periodic", "PER[20]")
-    test_cmd(ubit_serial, "Period (error)", "PER[5]", f"ERROR[{ERROR_CODE}]")
+    test_cmd(ubit_serial, "Period (error 1)", "PER[5]", f"ERROR[{ERROR_CODE}]")
+    test_cmd(ubit_serial, "Period (error 2)", "PER[-1]", f"ERROR[{ERROR_CODE}]")
 
     test_cmd(ubit_serial, "Software Version ", "SWVER[]", "SWVER[0.1.0]")
     # TODO: Check for error if trying to set a value with the SWVER command

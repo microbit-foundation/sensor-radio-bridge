@@ -14,7 +14,10 @@ static sbp_cmd_callbacks_t cmd_cbk = { };
 // HELPER FUNCTIONS -----------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-static int intFromCommandValue(const char *value_str, const size_t value_str_len, int *value) {
+static_assert(sizeof(unsigned long) == sizeof(uint32_t),
+              "uintFromCommandValue() depends on unsigned long being 32 bits");
+
+static uint32_t uintFromCommandValue(const char *value_str, const size_t value_str_len, uint32_t *value) {
     // Convert into a null terminated string
     char value_str_terminated[value_str_len + 1];
     for (size_t i = 0; i < value_str_len; i++) {
@@ -23,10 +26,15 @@ static int intFromCommandValue(const char *value_str, const size_t value_str_len
     value_str_terminated[value_str_len] = '\0';
 
     // Convert value_str into an integer
-    *value = atoi(value_str_terminated);
+    char *endptr;
+    unsigned long result = strtoul(value_str_terminated, &endptr, 10);
+    if (endptr != &value_str_terminated[value_str_len]) {
+        return SBP_ERROR_CMD_VALUE;
+    }
     if (*value == 0 && !(value_str_len == 1 && value_str[0] == '0')) {
         return SBP_ERROR_CMD_VALUE;
     }
+    *value = (uint32_t)result;
     return SBP_SUCCESS;
 }
 
@@ -225,9 +233,9 @@ static int sbp_processCommandResponse(
             // 2. A value - it sets the frequency and returns the final frequency configured
             //    If the frequency was already saved to flash it cannot be changed, so this value might be different
             if (received_cmd->value_len != 0) {
-                int radio_frequency;
-                int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &radio_frequency);
-                if (result != SBP_SUCCESS || radio_frequency < SBP_CMD_RADIO_FREQ_MIN || radio_frequency > SBP_CMD_RADIO_FREQ_MAX) {
+                uint32_t radio_frequency;
+                int result = uintFromCommandValue(received_cmd->value, received_cmd->value_len, &radio_frequency);
+                if (result != SBP_SUCCESS || radio_frequency > SBP_CMD_RADIO_FREQ_MAX) {
                     return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
                 protocol_state->radio_frequency = (uint8_t)radio_frequency;
@@ -248,12 +256,12 @@ static int sbp_processCommandResponse(
         case SBP_CMD_REMOTEID: {
             // Empty value indicates a read command only
             if (received_cmd->value_len != 0) {
-                int remote_microbit_id;
-                int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &remote_microbit_id);
+                uint32_t remote_microbit_id;
+                int result = uintFromCommandValue(received_cmd->value, received_cmd->value_len, &remote_microbit_id);
                 if (result != SBP_SUCCESS) {
                     return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
-                protocol_state->remote_id = (uint32_t)remote_microbit_id;
+                protocol_state->remote_id = remote_microbit_id;
 
                 if (cmd_cbk.remoteMbId) {
                     int result = cmd_cbk.remoteMbId(protocol_state);
@@ -269,9 +277,9 @@ static int sbp_processCommandResponse(
                 }
             }
 
-            // Convert protocol_state->remote_id into a string, range -2,147,483,648 to 2,147,483,647
+            // Convert protocol_state->remote_id into a string, max value 2*32
             char response_mb_id[12] = { 0 };
-            size_t mb_id_str_len = snprintf(response_mb_id, 12, "%d", (int)protocol_state->remote_id);
+            size_t mb_id_str_len = snprintf(response_mb_id, 12, "%u", (unsigned int)protocol_state->remote_id);
             if (mb_id_str_len < 1) return SBP_ERROR_ENCODING;
 
             return sbp_generateResponseStr(
@@ -285,7 +293,7 @@ static int sbp_processCommandResponse(
 
             // Convert protocol_state->id into a string, range -2,147,483,648 to 2,147,483,647
             char response_mb_id[12] = { 0 };
-            size_t mb_id_str_len = snprintf(response_mb_id, 12, "%d", (int)protocol_state->id);
+            size_t mb_id_str_len = snprintf(response_mb_id, 12, "%u", (unsigned int)protocol_state->id);
             if (mb_id_str_len < 1) return SBP_ERROR_ENCODING;
 
             return sbp_generateResponseStr(
@@ -293,8 +301,8 @@ static int sbp_processCommandResponse(
         }
         case SBP_CMD_PERIOD: {
             // TODO: Make this also a "get" command when value is empty?
-            int period_ms;
-            int result = intFromCommandValue(received_cmd->value, received_cmd->value_len, &period_ms);
+            uint32_t period_ms;
+            int result = uintFromCommandValue(received_cmd->value, received_cmd->value_len, &period_ms);
             if (result != SBP_SUCCESS || period_ms < SBP_CMD_PERIOD_MIN || period_ms > SBP_CMD_PERIOD_MAX) {
                 return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
             }
@@ -302,7 +310,7 @@ static int sbp_processCommandResponse(
 
             // Convert protocol_state->period_ms (uint16_t) into a string
             char response_period[6] = { 0 };
-            size_t period_str_len = snprintf(response_period, 6, "%d", protocol_state->period_ms);
+            size_t period_str_len = snprintf(response_period, 6, "%u", (unsigned int)protocol_state->period_ms);
             if (period_str_len < 1) return SBP_ERROR_ENCODING;
 
             return sbp_generateResponseStr(
