@@ -330,17 +330,16 @@ static int sbp_processCommandResponse(
             return sbp_generateResponseStr(received_cmd, response_hw_version, 1, str_buffer, str_buffer_len);
         }
         case SBP_CMD_START: {
-            protocol_state->send_periodic = true;
-            protocol_state->periodic_compact = false;
-            protocol_state->sensors.raw = 0;
             // The value format for the start command is a single letter for each sensor type
             // e.g. "AMBL" for accelerometer, magnetometer, buttons and light level
+            sbp_sensors_t sensors;
+            sensors.raw = 0;
             for (size_t i = 0; i < received_cmd->value_len; i++) {
                 char value_char = *(received_cmd->value + i);
                 bool valid_value = false;
                 for (size_t j = 0; j < SBP_SENSOR_TYPE_LEN; j++) {
                     if (value_char == sbp_sensor_type[j]) {
-                        protocol_state->sensors.raw |= (uint8_t)(1 << j);
+                        sensors.raw |= (uint8_t)(1 << j);
                         valid_value = true;
                         break;
                     }
@@ -349,6 +348,9 @@ static int sbp_processCommandResponse(
                     return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
             }
+            protocol_state->send_periodic = true;
+            protocol_state->periodic_compact = false;
+            protocol_state->sensors.raw = sensors.raw;
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         case SBP_CMD_ZSTART: {

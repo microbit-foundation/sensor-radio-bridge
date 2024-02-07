@@ -253,6 +253,8 @@ def main():
 
     test_start_stop(ubit_serial)
     test_cmd(ubit_serial, "Start (error)", "START[PABFMLTSZ]", f"ERROR[{ERROR_CODE}]")
+    test_cmd(ubit_serial, "Start (error)", "START[20]", f"ERROR[{ERROR_CODE}]")
+    test_cmd(ubit_serial, "Start (error)", "START[-1]", f"ERROR[{ERROR_CODE}]")
 
     test_zstart_stop(ubit_serial)
     # TODO: Once implemented, check error response for ZSTART command
