@@ -348,12 +348,29 @@ static int sbp_processCommandResponse(
                     return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INVALID_VALUE, str_buffer, str_buffer_len);
                 }
             }
+            // Save the state in case we need to restore it due to an error on the callback
+            bool original_send_periodic = protocol_state->send_periodic;
+            bool original_periodic_compact = protocol_state->periodic_compact;
+            sbp_sensors_t original_sensors = protocol_state->sensors;
             protocol_state->send_periodic = true;
             protocol_state->periodic_compact = false;
-            protocol_state->sensors.raw = sensors.raw;
+            protocol_state->sensors = sensors;
+
+            if (cmd_cbk.start && cmd_cbk.start(protocol_state) != SBP_SUCCESS) {
+                protocol_state->send_periodic = original_send_periodic;
+                protocol_state->periodic_compact = original_periodic_compact;
+                protocol_state->sensors = original_sensors;
+                return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INTERNAL_ERROR, str_buffer, str_buffer_len);
+            }
+
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         case SBP_CMD_ZSTART: {
+            // Save the state in case we need to restore it due to an error on the callback
+            bool original_send_periodic = protocol_state->send_periodic;
+            bool original_periodic_compact = protocol_state->periodic_compact;
+            sbp_sensors_t original_sensors = protocol_state->sensors;
+
             protocol_state->send_periodic = true;
             protocol_state->periodic_compact = true;
             protocol_state->sensors.raw = 0;
@@ -361,6 +378,14 @@ static int sbp_processCommandResponse(
             //       as that's all that is implemented right now
             protocol_state->sensors.accelerometer = true;
             protocol_state->sensors.buttons = true;
+
+            if (cmd_cbk.zstart && cmd_cbk.zstart(protocol_state) != SBP_SUCCESS) {
+                protocol_state->send_periodic = original_send_periodic;
+                protocol_state->periodic_compact = original_periodic_compact;
+                protocol_state->sensors = original_sensors;
+                return sbp_generateErrorResponseStr(received_cmd, SBP_ERROR_CODE_INTERNAL_ERROR, str_buffer, str_buffer_len);
+            }
+
             return sbp_generateResponseStr(received_cmd, NULL, 0, str_buffer, str_buffer_len);
         }
         case SBP_CMD_STOP: {

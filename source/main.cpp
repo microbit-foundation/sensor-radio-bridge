@@ -208,6 +208,20 @@ int setRadioFrequency(sbp_state_s *protocol_state) {
 }
 
 /**
+ * @brief Sets any actions required when the start/zstart command is received.
+ *
+ * @param protocol_state The protocol state to set the start command for.
+ *
+ * @return SBP_SUCCESS
+ */
+int setStartCommand(sbp_state_s *protocol_state) {
+    // We don't want to send any stale data, so only send data received
+    // after the start command was received
+    sensor_data.fresh_data = false;
+    return SBP_SUCCESS;
+}
+
+/**
  * @brief Updates the sensor data structure with the current values as enabled
  * in sensor_config.
  *
@@ -276,9 +290,12 @@ int main() {
         .sw_version = PROJECT_VERSION,
         .sensors = { },
     };
-    sbp_cmd_callbacks_t protocol_callbacks = { };
-    protocol_callbacks.radioFrequency = setRadioFrequency;
-    protocol_callbacks.remoteMbId = setRemoteMbId;
+    sbp_cmd_callbacks_t protocol_callbacks = {
+        .radioFrequency = setRadioFrequency,
+        .remoteMbId = setRemoteMbId,
+        .start = setStartCommand,
+        .zstart = setStartCommand,
+    };
 
     int init_success = sbp_init(&protocol_callbacks, &protocol_state);
     if (init_success < SBP_SUCCESS) uBit.panic(200);
@@ -298,10 +315,6 @@ int main() {
                 // Read any incoming message & process it
                 int response_len = sbp_processCommand(cmd, &protocol_state, serial_data, serial_data_len);
                 if (response_len < SBP_SUCCESS) uBit.panic(210);
-
-                // For development, uncomment to check available free time
-                // uBit.serial.printf("t[%d]", next_periodic_msg - uBit.systemTime());
-
                 uBit.serial.send((uint8_t *)serial_data, response_len, SYNC_SLEEP);
             }
             // Sleep if there is no buffered message, and enough time before the periodic message
@@ -351,8 +364,8 @@ int main() {
             } else {
                 // Stale data, blink the waiting image until new data is received
                 static bool blink = true;
-                static uint32_t count = 0;
-                if (count++ % 30 == 0) {
+                static uint32_t blink_count = 0;
+                if (blink_count++ % 30 == 0) {
                     uBit.display.print(blink ? IMG_WAITING : IMG_EMPTY);
                     blink = !blink;
                 }

@@ -21,10 +21,10 @@ def flash_file(mb_path, hex_path):
     # Wait for the  micro:bit to be mounted
     print("Waiting for micro:bit to be mounted...")
     if not os.path.isfile(os.path.join(mb_path, "DETAILS.TXT")):
-        print("Still waiting...")
         time.sleep(1)
+        print("Still waiting...")
     time.sleep(1)
-    print("Done.")
+    print("Flashing...")
 
     with open(os.path.join(mb_path, "input.hex"), "wb") as hex_write:
         hex_write.write(hex_bytes)
@@ -35,20 +35,20 @@ def flash_file(mb_path, hex_path):
 
 def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
     # First step is to flash the remote micro:bit
-    print("\nFlashing remote micro:bit...")
+    print("\nFlashing remote micro:bit:")
     flash_file(mb_path, remote_mb_file_path)
     print("Done.")
 
     # And get its unique ID
     print("\nReading the remote micro:bit ID... (not yet implemented)")
     # TODO: Currently hardcoded to a known micro:bit value
-    remote_microbit_id = 2618830712
+    remote_microbit_id = 3130793464
     print("Done.")
 
-    input("\nUnplug remote micro:bit and plug bridge micro:bit\nPress enter to continue...")
+    input("\n👉 Unplug remote micro:bit and plug bridge micro:bit\n⌨️ Press enter to continue...")
 
     # Now flash second micro:bit
-    print("\nFlashing bridge micro:bit...")
+    print("\nFlashing bridge micro:bit:")
     flash_file(mb_path, bridge_mb_file_path)
     print("Done.")
 
@@ -83,7 +83,7 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
         raise Exception("Remote micro:bit ID not set correctly.")
 
     # Check that the remote micro:bit ID has been set saved to NVM
-    input("\nPress the reset button on the bridge micro:bit\nPress enter to continue...")
+    input("\n👉 Press the reset button on the bridge micro:bit\n⌨️ Press enter to continue...")
     received_remote_mb_id, _ = test_cmd(ubit_serial, "Read remote ID", "RMBID[]", check_value=False)
     if received_remote_mb_id != str(remote_microbit_id):
         raise Exception("Remote micro:bit ID not set correctly.")
@@ -96,10 +96,36 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
         print((remote_microbit_id & 0xffffffff) % 83)
         raise Exception("Radio frequency not internally set correctly in device.")
 
-    # And not start streaming
-    test_cmd(ubit_serial, "Start", "START[AB]", "START[]")
+    # Start streaming and check that after stop nothing else is sent
+    print("\nReceiving periodic data for one second and stop:")
+    test_cmd(ubit_serial, "Start", "ZSTART[AB]", "ZSTART[]")
+    periodic_msg_received = False
+    timeout_time = time.time() + 1
+    while time.time() < timeout_time:
+        serial_line = ubit_serial.readline()
+        if len(serial_line) > 0:
+            if serial_line.startswith(b"P") and len(serial_line) == 14:
+                print(f"\t(DEVICE 🔁) {serial_line[:-1]}")
+                periodic_msg_received = True
+            else:
+                raise Exception(f"Message received is not periodic type: {serial_line}")
+        time.sleep(0.001)
+    test_cmd(ubit_serial, "Stop", "STOP[]", check_value=False)
+    if not periodic_msg_received:
+        raise Exception("No periodic message received.")
 
-    print("\nAll done, receiving periodic data:")
+    # No additional periodic messages should be received
+    input("\n👉Disconnect battery pack from remote micro:bit\n⌨️ Press enter to continue...")
+    _ , peridic_msgs = test_cmd(ubit_serial, "Start", "START[AB]", "START[]")
+    if len(peridic_msgs) > 0:
+        raise Exception(f"Received periodic message, which should have not been sent: {peridic_msgs}")
+    serial_line = ubit_serial.readline()
+    if len(serial_line) > 0:
+        raise Exception(f"Received unexpected message, which should have not been sent: {serial_line}")
+    print("Done, no unexpected periodic messages received.")
+
+    # Now just stream indefinitely
+    print("\n👉 Connect the battery pack to the remote micro:bit to start streaming:")
     while True:
         serial_line = ubit_serial.readline()
         if len(serial_line) > 0:
@@ -107,7 +133,6 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
                 print(f"\t(DEVICE 🔁) {serial_line[:-1]}")
             else:
                 print(f"\t(DEVICE ❌) {serial_line[:-1]}")
-                # raise Exception(f"Message received is not periodic type: {serial_line}")
         time.sleep(0.001)
 
     return 0

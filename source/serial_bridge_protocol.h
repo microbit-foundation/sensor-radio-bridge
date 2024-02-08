@@ -93,10 +93,12 @@ const char* const sbp_cmd_type_str[SBP_CMD_TYPE_LEN] = {
 typedef int (*sbp_cmd_callback_t)(sbp_state_t *protocol_state);
 
 // For symmetry this would include an entry per command, but in reality
-//  we are not going to use the rest
+// we are not going to use the rest
 typedef struct sbp_cmd_callback_s {
-    sbp_cmd_callback_t radioFrequency = NULL;
-    sbp_cmd_callback_t remoteMbId = NULL;
+    sbp_cmd_callback_t radioFrequency;
+    sbp_cmd_callback_t remoteMbId;
+    sbp_cmd_callback_t start;
+    sbp_cmd_callback_t zstart;
 } sbp_cmd_callbacks_t;
 
 /**
