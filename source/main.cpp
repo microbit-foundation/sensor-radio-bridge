@@ -20,16 +20,28 @@ static sbp_sensor_data_t sensor_data = { };
 
 // Function declarations
 int setRadioFrequency(sbp_state_s *protocol_state);
+uint32_t getRemoteMbId();
+
+#if CONFIG_ENABLED(RADIO_BRIDGE)
+/**
+ * @return The micro:bit ID of the currently active remote micro:bit.
+ */
+static inline uint32_t getActiveRemoteMbId() {
+#if CONFIG_ENABLED(DEV_MODE)
+    return radiobridge_getActiveRemoteMbId();
+#else
+    return getRemoteMbId();
+#endif
+}
 
 /**
  * @brief Callback for received radio packets.
  *
  * @param radio_sensor_data The data received via radio.
  */
-#if CONFIG_ENABLED(RADIO_BRIDGE)
 void radioDataCallback(radio_packet_t *radio_packet) {
     if (radio_packet->packet_type != RADIO_PKT_SENSOR_DATA) return;
-    if (radio_packet->mb_id == radiobridge_getActiveRemoteMbId()) {
+    if (radio_packet->mb_id == getActiveRemoteMbId()) {
         radio_sensor_data_t *radio_sensor_data = &radio_packet->sensor_data;
         sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
         sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
@@ -70,6 +82,22 @@ int storeRemoteMbId(sbp_state_s *protocol_state) {
 }
 
 /**
+ * @brief Saves the remote micro:bit ID into Non Volatile Memory, and
+ * configures the radio frequency based on this value.
+ *
+ * @param protocol_state The protocol state with the updated remote ID value.
+ *
+ * @return SBP_SUCCESS if the remote micro:bit ID was set successfully, an error value otherwise.
+ */
+int setRemoteMbId(sbp_state_s *protocol_state) {
+    int result = storeRemoteMbId(protocol_state);
+    if (result < SBP_SUCCESS) return result;
+
+    protocol_state->radio_frequency = radio_getFrequencyFromId(protocol_state->remote_id);
+    return setRadioFrequency(protocol_state);
+}
+
+/**
  * @brief Get the Radio Frequency from Non Volatile Memory, or the default
  * value if not set in NVM.
  *
@@ -85,22 +113,6 @@ uint32_t getRemoteMbId() {
         return microbit_serial_number();
     }
     return *stored_remote_mb_id;
-}
-
-/**
- * @brief Saves the remote micro:bit ID into Non Volatile Memory, and
- * configures the radio frequency based on this value.
- *
- * @param protocol_state The protocol state with the updated remote ID value.
- *
- * @return SBP_SUCCESS if the remote micro:bit ID was set successfully, an error value otherwise.
- */
-int setRemoteMbId(sbp_state_s *protocol_state) {
-    int result = storeRemoteMbId(protocol_state);
-    if (result < SBP_SUCCESS) return result;
-
-    protocol_state->radio_frequency = radio_getFrequencyFromId(protocol_state->remote_id);
-    return setRadioFrequency(protocol_state);
 }
 
 /**
@@ -135,8 +147,7 @@ int setRadioFrequency(sbp_state_s *protocol_state) {
  * @return SBP_SUCCESS
  */
 int setStartCommand(sbp_state_s *protocol_state) {
-    // We don't want to send any stale data, so only send data received
-    // after the start command was received
+    // Discard any data received before this point as stale data
     sensor_data.fresh_data = false;
     return SBP_SUCCESS;
 }
@@ -243,16 +254,16 @@ int main() {
             }
         }
 
-#if CONFIG_ENABLED(RADIO_BRIDGE) && CONFIG_ENABLED(DEV_MODE)
-        if (uBit.buttonA.isPressed()) {
-            radiobridge_switchNextRemoteMicrobit();
-        }
-#endif
 #if CONFIG_ENABLED(DEV_MODE)
         if (uBit.logo.isPressed()) {
             // Useful to test ML Tool crash recovery
             uBit.panic(0);
         }
+    #if CONFIG_ENABLED(RADIO_BRIDGE)
+        if (uBit.buttonA.isPressed()) {
+            radiobridge_switchNextRemoteMicrobit();
+        }
+    #endif
 #endif
 
         // If periodic messages are enabled and new data has been received, send it
