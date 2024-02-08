@@ -17,6 +17,15 @@ from test_protocol import find_microbit_serial_port, test_cmd
 def flash_file(mb_path, hex_path):
     with open(hex_path, "rb") as hex_file:
         hex_bytes = hex_file.read()
+
+    # Wait for the  micro:bit to be mounted
+    print("Waiting for micro:bit to be mounted...")
+    if not os.path.isfile(os.path.join(mb_path, "DETAILS.TXT")):
+        print("Still waiting...")
+        time.sleep(1)
+    time.sleep(1)
+    print("Done.")
+
     with open(os.path.join(mb_path, "input.hex"), "wb") as hex_write:
         hex_write.write(hex_bytes)
         hex_write.flush()
@@ -33,16 +42,10 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
     # And get its unique ID
     print("\nReading the remote micro:bit ID... (not yet implemented)")
     # TODO: Currently hardcoded to a known micro:bit value
-    remote_microbit_id = -1676136584
+    remote_microbit_id = 2618830712
     print("Done.")
 
     input("\nUnplug remote micro:bit and plug bridge micro:bit\nPress enter to continue...")
-    # Wait for the bridge micro:bit to be mounted
-    if not os.path.isdir(mb_path):
-        print("Waiting for bridge micro:bit to be mounted...")
-        time.sleep(1)
-    time.sleep(1)
-    print("Done.")
 
     # Now flash second micro:bit
     print("\nFlashing bridge micro:bit...")
@@ -73,10 +76,18 @@ def main(mb_path, remote_mb_file_path, bridge_mb_file_path):
     received_remote_mb_id, _ = test_cmd(ubit_serial, "Read remote ID", "RMBID[]", check_value=False)
     if bridge_mb_id != received_remote_mb_id:
         raise Exception("Remote micro:bit ID already set to a value.")
+
     test_cmd(ubit_serial, "Set remote ID", f"RMBID[{remote_microbit_id}]")
     received_remote_mb_id, _ = test_cmd(ubit_serial, "Read remote ID", "RMBID[]", check_value=False)
     if received_remote_mb_id != str(remote_microbit_id):
         raise Exception("Remote micro:bit ID not set correctly.")
+
+    # Check that the remote micro:bit ID has been set saved to NVM
+    input("\nPress the reset button on the bridge micro:bit\nPress enter to continue...")
+    received_remote_mb_id, _ = test_cmd(ubit_serial, "Read remote ID", "RMBID[]", check_value=False)
+    if received_remote_mb_id != str(remote_microbit_id):
+        raise Exception("Remote micro:bit ID not set correctly.")
+    print("Correctly retrieved remote micro:bit ID from NVM.")
 
     # Now check the radio frequency has been correctly configured
     radio_frequency, _ = test_cmd(ubit_serial, "Read radio frequency", "RF[]", check_value=False)
