@@ -85,11 +85,6 @@ static_assert(sizeof(radio_packet_t) == 28, "radio_packet_t should be 28 bytes")
  */
 typedef void (*radio_data_callback_t)(radio_packet_t *radio_packet);
 
-/**
- * @brief Types for callbacks to execute when receiving cmds from the bridge.
- */
-typedef void (*radio_cmd_func_t)(radio_cmd_t *value);
-
 
 #if CONFIG_ENABLED(RADIO_BRIDGE)
 /**
@@ -108,6 +103,26 @@ void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency);
  * @param value The value to send with the command.
  */
 void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *value = NULL);
+
+/**
+ * @brief Updates the list of micro:bit IDs that have been seen recently.
+ * 
+ * @param mb_id The micro:bit ID to mark as active.
+ */
+void radiobridge_updateRemoteMbIds(uint32_t mb_id);
+
+/**
+ * @brief Switches the active remote micro:bit to the next available remote
+ * micro:bit.
+ * On switch it sends a command to the new active micro:bit to flash the
+ * display.
+ */
+void radiobridge_switchNextRemoteMicrobit();
+
+/**
+ * @return The micro:bit ID for the active remote micro:bit.
+ */
+uint32_t radiobridge_getActiveRemoteMbId();
 #endif
 
 #if CONFIG_ENABLED(RADIO_REMOTE)

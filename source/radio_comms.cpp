@@ -2,13 +2,36 @@
 #include "radio_comms.h"
 #include "mb_images.h"
 
+#if CONFIG_ENABLED(RADIO_REMOTE)
+/**
+ * @brief Types for callbacks to execute when receiving cmds from the bridge.
+ */
+typedef void (*radio_cmd_func_t)(radio_cmd_t *value);
+
+/**
+ * @brief Stores the remote micro:bit callback functions for the received
+ * radio commands.
+ */
+static radio_cmd_func_t radiotx_cmd_functions[RADIO_CMD_TYPE_LEN] = { };
+#endif
+
+#if CONFIG_ENABLED(RADIO_BRIDGE)
 /**
  * @brief Stores the callback for the received radio packets.
  */
 static radio_data_callback_t radiobridge_data_callback = NULL;
 
-static radio_cmd_func_t radiotx_cmd_functions[RADIO_CMD_TYPE_LEN] = { };
-
+/**
+ * @brief Stores the list of micro:bit IDs that have been seen recently,
+ * the time they were last seen, and the index of the active micro:bit.
+ */
+static const size_t MB_IDS_LEN = 32;
+static const size_t MB_IDS_ID = 0;
+static const size_t MB_IDS_TIME = 1;
+static uint32_t mb_ids[MB_IDS_LEN][2] = { };
+static size_t active_mb_id_i = MB_IDS_LEN;
+#define GET_ACTIVE_MB_ID()      mb_ids[active_mb_id_i][MB_IDS_ID]
+#endif
 
 // ----------------------------------------------------------------------------
 // SENSOR DATA TX & RX FUNCTIONS ----------------------------------------------
@@ -67,7 +90,7 @@ static void radiotx_sendPeriodicData() {
 
 
 // ----------------------------------------------------------------------------
-// BRIDGE RECEIVER FUNCTIONS --------------------------------------------------
+// BRIDGE FUNCTIONS -----------------------------------------------------------
 // ----------------------------------------------------------------------------
 #if CONFIG_ENABLED(RADIO_BRIDGE)
 void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency) {
@@ -97,11 +120,78 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
 
     uBit.radio.datagram.send(radio_data, sizeof(radio_data));
 }
+
+void radiobridge_updateRemoteMbIds(uint32_t mb_id) {
+    static const uint32_t TIME_TO_FORGET_MS = 2000;
+
+    uint32_t now = uBit.systemTime();
+
+    // If we don't have an active micro:bit, add to array and set as active
+    if (active_mb_id_i == MB_IDS_LEN) {
+        mb_ids[0][MB_IDS_ID] = mb_id;
+        mb_ids[0][MB_IDS_TIME] = now;
+        active_mb_id_i = 0;
+        return;
+    }
+
+    bool found_mb_id = false;
+    size_t oldest_inactive_mb_id_time = 0xFFFFFFFF;
+    size_t oldest_inactive_mb_id_index = 0;
+    for (size_t i = 0; i < MB_IDS_LEN; i++) {
+        if (mb_ids[i][MB_IDS_ID] == mb_id) {
+            mb_ids[i][MB_IDS_TIME] = now;
+            found_mb_id = true;
+        } else {
+            if (mb_ids[i][MB_IDS_TIME] < (now - TIME_TO_FORGET_MS) && mb_ids[i][MB_IDS_ID] != GET_ACTIVE_MB_ID()) {
+                // It's been too long since this inactive micro:bit was heard, forget it
+                mb_ids[i][MB_IDS_ID] = 0;
+                mb_ids[i][MB_IDS_TIME] = 0;
+            }
+            if (mb_ids[i][MB_IDS_TIME] < oldest_inactive_mb_id_time && mb_ids[i][MB_IDS_ID] != GET_ACTIVE_MB_ID()) {
+                oldest_inactive_mb_id_index = i;
+                oldest_inactive_mb_id_time = mb_ids[i][1];
+            }
+        }
+    }
+    if (!found_mb_id) {
+        mb_ids[oldest_inactive_mb_id_index][MB_IDS_ID] = mb_id;
+        mb_ids[oldest_inactive_mb_id_index][MB_IDS_TIME] = now;
+    }
+}
+
+/**
+ * @brief Switches the active micro:bit to the next one active in the list.
+ */
+void radiobridge_switchNextRemoteMicrobit() {
+    // Debounce to only allow switching once per second
+    static uint32_t last_switch_time = 0;
+    if (uBit.systemTime() < (last_switch_time + 1000)) return;
+    last_switch_time = uBit.systemTime();
+
+    // Nothing to do if there is no active micro:bit
+    if (active_mb_id_i == MB_IDS_LEN) return;
+    // Or if the active micro:bit somehow does not have an ID assigned
+    // TODO: This is an error condition, we should do something to recover
+    if (GET_ACTIVE_MB_ID() == 0) return;
+
+    // Rotate the active micro:bit ID to the next one in the mb_ids array that has a value
+    // If there isn't any other active micro:bits, then the current active will be picked again
+    size_t next_active_mb_id_i = active_mb_id_i;
+    do {
+        next_active_mb_id_i = (next_active_mb_id_i + 1) % MB_IDS_LEN;
+    } while (mb_ids[next_active_mb_id_i][MB_IDS_ID] == 0);
+    active_mb_id_i = next_active_mb_id_i;
+    radiobridge_sendCommand(GET_ACTIVE_MB_ID(), RADIO_CMD_BLINK);
+}
+
+uint32_t radiobridge_getActiveRemoteMbId() {
+    return GET_ACTIVE_MB_ID();
+}
 #endif
 
 
 // ----------------------------------------------------------------------------
-// SENDER FUNCTIONS -----------------------------------------------------------
+// REMOTE FUNCTIONS -----------------------------------------------------------
 // ----------------------------------------------------------------------------
 #if CONFIG_ENABLED(RADIO_REMOTE)
 
