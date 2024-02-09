@@ -77,7 +77,7 @@ static_assert(sizeof(radio_packet_t) == 28, "radio_packet_t should be 28 bytes")
  *                    Data must be copied from this pointer as it will be
  *                    destroyed after the callback.
  */
-typedef void (*radio_data_callback_t)(radio_packet_t *radio_packet);
+typedef void (*radio_data_callback_t)(const radio_packet_t *radio_packet);
 
 
 #if CONFIG_ENABLED(RADIO_BRIDGE)
@@ -87,7 +87,21 @@ typedef void (*radio_data_callback_t)(radio_packet_t *radio_packet);
  *
  * @param callback The callback to pass the radio data to.
  */
-void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency);
+void radiobridge_init(const radio_data_callback_t callback, const uint8_t radio_frequency);
+
+/**
+ * @brief Changes the radio frequency of the remote micro:bits and the
+ *        bridge micro:bits.
+ * 
+ * TODO: Currently this function only changes the bridge radio frequency,
+ *       need to design a plan to change the remote micro:bit as well.
+ *
+ * @param radio_frequency The new radio frequency to set.
+ *
+ * @return MICROBIT_OK if the radio frequency was set successfully to all
+ *         micro:bits, or a MICROBIT error value otherwise.
+ */
+int radiobridge_setRadioFrequencyAllMbs(const uint8_t radio_frequency);
 
 /**
  * @brief Sends a command to the radio sender.
@@ -96,14 +110,26 @@ void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency);
  * @param cmd The command to send.
  * @param value The value to send with the command.
  */
-void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *value = NULL);
+void radiobridge_sendCommand(const uint32_t mb_id, const radio_cmd_type_t cmd, const radio_cmd_t *value = NULL);
+
+/**
+ * @brief Sets the provided remote micro:bit ID as the active one.
+ * 
+ * @param mb_id The micro:bit ID to set as active.
+ */
+void radiobridge_setActiveRemoteMbId(const uint32_t mb_id) ;
+
+/**
+ * @return The micro:bit ID for the active remote micro:bit.
+ */
+uint32_t radiobridge_getActiveRemoteMbId();
 
 /**
  * @brief Updates the list of micro:bit IDs that have been seen recently.
  * 
  * @param mb_id The micro:bit ID to mark as active.
  */
-void radiobridge_updateRemoteMbIds(uint32_t mb_id);
+void radiobridge_updateRemoteMbIds(const uint32_t mb_id);
 
 /**
  * @brief Switches the active remote micro:bit to the next available remote
@@ -112,11 +138,6 @@ void radiobridge_updateRemoteMbIds(uint32_t mb_id);
  * display.
  */
 void radiobridge_switchNextRemoteMicrobit();
-
-/**
- * @return The micro:bit ID for the active remote micro:bit.
- */
-uint32_t radiobridge_getActiveRemoteMbId();
 #endif
 
 #if CONFIG_ENABLED(RADIO_REMOTE)
@@ -134,6 +155,6 @@ void radiotx_mainLoop();
  *
  * @return The frequency value, between 0 and MAX_RADIO_FREQUENCY.
  */
-inline uint8_t radio_getFrequencyFromId(uint32_t id)  {
+inline uint8_t radio_getFrequencyFromId(const uint32_t id) {
     return id % MAX_RADIO_FREQUENCY;
 }

@@ -9,3 +9,4 @@ extern const MicroBitImage IMG_SQUARE;
 extern const MicroBitImage IMG_STAIRS;
 extern const MicroBitImage IMG_DOT;
 extern const MicroBitImage IMG_EMPTY;
+extern const MicroBitImage IMG_FULL;

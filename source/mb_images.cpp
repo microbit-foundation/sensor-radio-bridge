@@ -55,3 +55,11 @@ static const char * const empty =
     "000,000,000,000,000\n"
     "000,000,000,000,000\n";
 const MicroBitImage IMG_EMPTY(empty);
+
+static const char * const full =
+    "255,255,255,255,255\n"
+    "255,255,255,255,255\n"
+    "255,255,255,255,255\n"
+    "255,255,255,255,255\n"
+    "255,255,255,255,255\n";
+const MicroBitImage IMG_FULL(full);

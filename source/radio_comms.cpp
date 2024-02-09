@@ -6,7 +6,7 @@
 /**
  * @brief Types for callbacks to execute when receiving cmds from the bridge.
  */
-typedef void (*radio_cmd_func_t)(radio_cmd_t *value);
+typedef void (*radio_cmd_func_t)(const radio_cmd_t *value);
 
 /**
  * @brief Stores the remote micro:bit callback functions for the received
@@ -95,7 +95,7 @@ static void radiotx_sendPeriodicData() {
 // BRIDGE FUNCTIONS -----------------------------------------------------------
 // ----------------------------------------------------------------------------
 #if CONFIG_ENABLED(RADIO_BRIDGE)
-void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency) {
+void radiobridge_init(const radio_data_callback_t callback, const uint8_t radio_frequency) {
     radiobridge_data_callback = callback;
     uBit.radio.enable();
     uBit.radio.setTransmitPower(MICROBIT_RADIO_POWER_LEVELS - 1);
@@ -103,7 +103,14 @@ void radiobridge_init(radio_data_callback_t callback, uint8_t radio_frequency) {
     uBit.messageBus.listen(MICROBIT_ID_RADIO, MICROBIT_RADIO_EVT_DATAGRAM, radiobridge_onRadioData);
 }
 
-void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *value) {
+int radiobridge_setRadioFrequencyAllMbs(const uint8_t radio_frequency) {
+    // TODO: Figure out a way to broadcast the frequency to all micro:bits
+    //       and make sure they all have received the command to change their
+    //       frequency
+    return uBit.radio.setFrequencyBand(radio_frequency);
+}
+
+void radiobridge_sendCommand(const uint32_t mb_id, const radio_cmd_type_t cmd, const radio_cmd_t *value) {
     // TODO: Use a randomised ID instead of a counter
     static uint32_t id = 0;
     id++;
@@ -116,7 +123,7 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
         .mb_id = mb_id,
         .cmd_data = { },
     };
-    uBit.serial.printf("Sending command %d to %x\n", cmd, mb_id);
+    // uBit.serial.printf("[RADIO CMD] Sending command %d to %x\n", cmd, mb_id);
 
     uint8_t radio_data[sizeof(radio_cmd)];
     memcpy(radio_data, &radio_cmd, sizeof(radio_cmd));
@@ -124,12 +131,35 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
     uBit.radio.datagram.send(radio_data, sizeof(radio_data));
 }
 
-void radiobridge_updateRemoteMbIds(uint32_t mb_id) {
-    static const uint32_t TIME_TO_FORGET_MS = 2000;
+void radiobridge_setActiveRemoteMbId(const uint32_t mb_id) {
+    uint32_t oldest_mb_time = 0xFFFFFFFF;
+    size_t oldest_mb_index = 0;
+    for (size_t i = 0; i < MB_IDS_LEN; i++) {
+        if (mb_ids[i][MB_IDS_ID] == mb_id) {
+            // ID on the list already, so ensure it's the active one and return
+            mb_ids[i][MB_IDS_TIME] = uBit.systemTime();
+            active_mb_id_i = i;
+            return;
+        }
+        if (mb_ids[i][MB_IDS_TIME] < oldest_mb_time) {
+            // This will either save the first empty or the oldest slot
+            oldest_mb_time = mb_ids[i][MB_IDS_TIME];
+            oldest_mb_index = i;
+        }
+    }
+    // The ID is not in the list yet, so store it in first empty or oldest slot
+    mb_ids[oldest_mb_index][MB_IDS_ID] = mb_id;
+    mb_ids[oldest_mb_index][MB_IDS_TIME] = uBit.systemTime();
+    active_mb_id_i = oldest_mb_index;
+}
+
+void radiobridge_updateRemoteMbIds(const uint32_t mb_id) {
+    static const uint32_t TIME_TO_FORGET_MS = 3000;
 
     uint32_t now = uBit.systemTime();
+    uint32_t time_threshold = now - TIME_TO_FORGET_MS;
 
-    // If we don't have an active micro:bit, add to array and set as active
+    // If we don't have an active micro:bit, add to top of array and set as active
     if (active_mb_id_i == MB_IDS_LEN) {
         mb_ids[0][MB_IDS_ID] = mb_id;
         mb_ids[0][MB_IDS_TIME] = now;
@@ -138,27 +168,32 @@ void radiobridge_updateRemoteMbIds(uint32_t mb_id) {
     }
 
     bool found_mb_id = false;
-    size_t oldest_inactive_mb_id_time = 0xFFFFFFFF;
-    size_t oldest_inactive_mb_id_index = 0;
+    uint32_t oldest_mb_time = 0xFFFFFFFF;
+    size_t oldest_mb_index = MB_IDS_LEN;
     for (size_t i = 0; i < MB_IDS_LEN; i++) {
         if (mb_ids[i][MB_IDS_ID] == mb_id) {
             mb_ids[i][MB_IDS_TIME] = now;
             found_mb_id = true;
         } else {
-            if (mb_ids[i][MB_IDS_TIME] < (now - TIME_TO_FORGET_MS) && mb_ids[i][MB_IDS_ID] != GET_ACTIVE_MB_ID()) {
+            if (mb_ids[i][MB_IDS_ID] == GET_ACTIVE_MB_ID()) {
+                // We don't want to remove the active micro:bit from the list
+                continue;
+            }
+            if (mb_ids[i][MB_IDS_TIME] < time_threshold) {
                 // It's been too long since this inactive micro:bit was heard, forget it
                 mb_ids[i][MB_IDS_ID] = 0;
                 mb_ids[i][MB_IDS_TIME] = 0;
             }
-            if (mb_ids[i][MB_IDS_TIME] < oldest_inactive_mb_id_time && mb_ids[i][MB_IDS_ID] != GET_ACTIVE_MB_ID()) {
-                oldest_inactive_mb_id_index = i;
-                oldest_inactive_mb_id_time = mb_ids[i][1];
+            if (mb_ids[i][MB_IDS_TIME] < oldest_mb_time) {
+                // This will either save the first empty or the oldest inactive slot
+                oldest_mb_time = mb_ids[i][MB_IDS_TIME];
+                oldest_mb_index = i;
             }
         }
     }
-    if (!found_mb_id) {
-        mb_ids[oldest_inactive_mb_id_index][MB_IDS_ID] = mb_id;
-        mb_ids[oldest_inactive_mb_id_index][MB_IDS_TIME] = now;
+    if (!found_mb_id && oldest_mb_index != MB_IDS_LEN) {
+        mb_ids[oldest_mb_index][MB_IDS_ID] = mb_id;
+        mb_ids[oldest_mb_index][MB_IDS_TIME] = now;
     }
 }
 
@@ -198,19 +233,19 @@ uint32_t radiobridge_getActiveRemoteMbId() {
 // ----------------------------------------------------------------------------
 #if CONFIG_ENABLED(RADIO_REMOTE)
 
-static void radiotx_cmd_blink(radio_cmd_t *value) {
+static void radiotx_cmd_blink(const radio_cmd_t *value) {
     (void)value;
 
     // Flash the LEDs in a different fiber to avoid blocking the radio
     create_fiber([]() {
-        MicroBitImage full("255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
+        MicroBitImage original_image = uBit.display.screenShot();
         for (int i = 0; i < 3; i++) {
-            uBit.display.print(full);
+            uBit.display.print(IMG_FULL);
             uBit.sleep(200);
             uBit.display.clear();
             uBit.sleep(200);
         }
-        uBit.display.print(IMG_RUNNING);
+        uBit.display.print(original_image);
     });
 }
 

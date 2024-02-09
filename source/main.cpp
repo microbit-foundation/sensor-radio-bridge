@@ -19,7 +19,6 @@ const uint32_t REMOTE_MB_ID_ADDR = 0x0007FC00;
 static sbp_sensor_data_t sensor_data = { };
 
 // Function declarations
-int setRadioFrequency(sbp_state_s *protocol_state);
 uint32_t getRemoteMbId();
 
 #if CONFIG_ENABLED(RADIO_BRIDGE)
@@ -39,10 +38,10 @@ static inline uint32_t getActiveRemoteMbId() {
  *
  * @param radio_sensor_data The data received via radio.
  */
-void radioDataCallback(radio_packet_t *radio_packet) {
+void radioDataCallback(const radio_packet_t *radio_packet) {
     if (radio_packet->packet_type != RADIO_PKT_SENSOR_DATA) return;
     if (radio_packet->mb_id == getActiveRemoteMbId()) {
-        radio_sensor_data_t *radio_sensor_data = &radio_packet->sensor_data;
+        const radio_sensor_data_t *radio_sensor_data = &radio_packet->sensor_data;
         sensor_data.accelerometer_x = radio_sensor_data->accelerometer_x;
         sensor_data.accelerometer_y = radio_sensor_data->accelerometer_y;
         sensor_data.accelerometer_z = radio_sensor_data->accelerometer_z;
@@ -58,12 +57,18 @@ void radioDataCallback(radio_packet_t *radio_packet) {
 #endif
 
 /**
- * @brief Stores the remote micro:bit ID into flash (NVM),
- * for permanence after reset or power off.
+ * @brief Stores the remote micro:bit ID into flash (NVM), for permanence
+ * after reset or power off.
  *
- * @param protocol_state The protocol state with the updated remote micro:bit ID value.
+ * If the remote ID was already stored in NVM and the received ID doesn't
+ * match the stored value, the received ID is rejected and the NVM value
+ * is restored into protocol_state->remote_id.
  *
- * @return SBP_SUCCESS if the remote micro:bit was stored successfully, an error value otherwise.
+ * @param protocol_state The protocol state with the updated remote micro:bit
+ *        ID value.
+ *
+ * @return SBP_SUCCESS if the remote micro:bit was stored successfully,
+ *         an error value otherwise.
  */
 int storeRemoteMbId(sbp_state_s *protocol_state) {
     uint32_t *stored_remote_mb_id = (uint32_t *)REMOTE_MB_ID_ADDR;
@@ -87,14 +92,22 @@ int storeRemoteMbId(sbp_state_s *protocol_state) {
  *
  * @param protocol_state The protocol state with the updated remote ID value.
  *
- * @return SBP_SUCCESS if the remote micro:bit ID was set successfully, an error value otherwise.
+ * @return SBP_SUCCESS if the remote micro:bit ID was set successfully,
+ *         an error value otherwise.
  */
 int setRemoteMbId(sbp_state_s *protocol_state) {
     int result = storeRemoteMbId(protocol_state);
     if (result < SBP_SUCCESS) return result;
 
+    // At this point the new remote ID has been accepted
+#if CONFIG_ENABLED(RADIO_BRIDGE) && CONFIG_ENABLED(DEV_MODE)
+    radiobridge_setActiveRemoteMbId(protocol_state->remote_id);
+#endif
+
+    // Set radio frequency of the bridge only
     protocol_state->radio_frequency = radio_getFrequencyFromId(protocol_state->remote_id);
-    return setRadioFrequency(protocol_state);
+    int success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
+    return success == MICROBIT_OK ? SBP_SUCCESS : SBP_ERROR_INTERNAL;
 }
 
 /**
@@ -128,15 +141,21 @@ uint8_t getRadioFrequency() {
 /**
  * @brief Sets the radio frequency configured in the protocol state.
  *
+ * TODO: Currently the microbit-bridge function only changes the bridge radio
+ *       frequency, needs an update to change the remote micro:bit as well.
+ *
  * @param protocol_state The protocol state with the updated radio frequency.
  *
  * @return SBP_SUCCESS if the radio frequency was set successfully, an error
  *         value otherwise.
  */
 int setRadioFrequency(sbp_state_s *protocol_state) {
-    int success = uBit.radio.setFrequencyBand(protocol_state->radio_frequency);
-    if (success != MICROBIT_OK) return SBP_ERROR_INTERNAL;
+#if CONFIG_ENABLED(RADIO_BRIDGE)
+    int result = radiobridge_setRadioFrequencyAllMbs(protocol_state->radio_frequency);
+    return result == MICROBIT_OK ? SBP_SUCCESS : SBP_ERROR_INTERNAL;
+#else
     return SBP_SUCCESS;
+#endif
 }
 
 /**
@@ -256,7 +275,7 @@ int main() {
 
 #if CONFIG_ENABLED(DEV_MODE)
         if (uBit.logo.isPressed()) {
-            // Useful to test ML Tool crash recovery
+            // Useful to test crash recovery
             uBit.panic(0);
         }
     #if CONFIG_ENABLED(RADIO_BRIDGE)
