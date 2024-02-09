@@ -208,7 +208,7 @@ def test_zstart_stop(ubit_serial):
         print(f"\t(DEVICE 🔁) {msg}")
 
 
-def main():
+def connect_serial():
     print("Connecting to device serial..")
     microbit_port = find_microbit_serial_port()
     if not microbit_port:
@@ -217,6 +217,8 @@ def main():
         microbit_port, 115200, timeout=0.5, parity=PARITY_NONE,
         stopbits=STOPBITS_ONE, rtscts=False, dsrdtr=False
     )
+    print("Done.")
+
     print("Connected, printing any received data (there shouldn't be any)...")
     time.sleep(0.1)
     serial_line = ubit_serial.readline()
@@ -224,6 +226,12 @@ def main():
         print(f'(DEVICE 🔙) {serial_line.decode("ascii")}', end="")
         serial_line = ubit_serial.readline()
     print("Done.")
+
+    return ubit_serial
+
+
+def main():
+    ubit_serial = connect_serial()
 
     ERROR_CODE = 1
 
@@ -259,9 +267,11 @@ def main():
     test_zstart_stop(ubit_serial)
     # TODO: Once implemented, check error response for ZSTART command
 
+    print("\n✅ All tests passed.")
+
     return 0
 
 
 if __name__ == "__main__":
-    exit_status = main()
-    sys.exit(exit_status)
+    exit_code = main()
+    sys.exit(exit_code)
