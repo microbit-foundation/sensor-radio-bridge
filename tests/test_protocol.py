@@ -251,7 +251,7 @@ def main():
     test_cmd(ubit_serial, "Period (error 1)", "PER[5]", f"ERROR[{ERROR_CODE}]")
     test_cmd(ubit_serial, "Period (error 2)", "PER[-1]", f"ERROR[{ERROR_CODE}]")
 
-    test_cmd(ubit_serial, "Software Version ", "SWVER[]", "SWVER[0.2.0]")
+    test_cmd(ubit_serial, "Software Version ", "SWVER[]", "SWVER[0.2.1]")
     # TODO: Check for error if trying to set a value with the SWVER command
     # test_cmd(ubit_serial, "Software Version (error)", "SWVER[0.1.1]", f"ERROR[{ERROR_CODE}]")
 
