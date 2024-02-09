@@ -35,10 +35,7 @@ typedef __PACKED_STRUCT radio_sensor_data_s {
 } radio_sensor_data_t;
 
 typedef __PACKED_STRUCT radio_cmd_s {
-    int32_t unused1;
-    int32_t unused2;
-    int32_t unused3;
-    int32_t unused4;
+    int32_t unused[4];
 } radio_cmd_t;
 
 typedef __PACKED_STRUCT radio_cmd_display_s {
@@ -47,10 +44,7 @@ typedef __PACKED_STRUCT radio_cmd_display_s {
     uint8_t row3;
     uint8_t row4;
     uint8_t row5;
-    uint8_t padding1;
-    uint16_t padding2;
-    uint32_t padding3;
-    uint32_t padding4;
+    uint8_t padding[11];
 } radio_cmd_display_t;
 
 /**

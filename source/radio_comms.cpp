@@ -69,6 +69,7 @@ static void radiotx_sendPeriodicData() {
     radio_packet_t data = {
         .packet_type = RADIO_PKT_SENSOR_DATA,
         .cmd_type = RADIO_CMD_INVALID,
+        .padding = 0,
         .id = id,
         .mb_id = microbit_serial_number(),
         .sensor_data = {
@@ -78,6 +79,7 @@ static void radiotx_sendPeriodicData() {
             .button_a = (uint8_t)uBit.buttonA.isPressed(),
             .button_b = (uint8_t)uBit.buttonB.isPressed(),
             .button_logo = (uint8_t)uBit.logo.isPressed(),
+            .padding = 0,
         },
     };
 
@@ -109,6 +111,7 @@ void radiobridge_sendCommand(uint32_t mb_id, radio_cmd_type_t cmd, radio_cmd_t *
     radio_packet_t radio_cmd = {
         .packet_type = RADIO_PKT_CMD,
         .cmd_type = cmd,
+        .padding = 0,
         .id = id,
         .mb_id = mb_id,
         .cmd_data = { },

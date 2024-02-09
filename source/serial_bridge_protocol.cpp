@@ -118,7 +118,7 @@ static int sbp_parseCommand(const char *msg, const size_t msg_len, sbp_cmd_t *cm
             break;
         }
     }
-    if (*msg != ']' || msg_len != (msg - msg_start + 1)) {
+    if (*msg != ']' || msg_len != (size_t)(msg - msg_start + 1)) {
         return SBP_ERROR_PROTOCOL_FORMAT;
     }
 
@@ -415,7 +415,7 @@ int sbp_init(sbp_cmd_callbacks_t *cmd_callbacks, sbp_state_t *protocol_state) {
     if (protocol_state->hw_version == 0 ||
         protocol_state->sw_version == NULL ||
         protocol_state->radio_frequency > SBP_CMD_RADIO_FREQ_MAX ||
-        protocol_state->period_ms > SBP_CMD_PERIOD_MAX) {
+        protocol_state->period_ms < SBP_CMD_PERIOD_MIN) {
         return SBP_ERROR;
     }
 
@@ -554,7 +554,7 @@ int sbp_sensorDataPeriodicStr(
     }
 
     // Ensure the string ends with the message separator and a null terminator
-    if ((str_buffer_len - serial_data_length) >= (SBP_MSG_SEPARATOR_LEN + 1)) {
+    if ((str_buffer_len - serial_data_length) >= (int)(SBP_MSG_SEPARATOR_LEN + 1)) {
         serial_data_length += snprintf(
             str_buffer + serial_data_length, SBP_MSG_SEPARATOR_LEN + 1, SBP_MSG_SEPARATOR
         );
@@ -630,7 +630,7 @@ int sbp_compactSensorDataPeriodicStr(
     }
 
     // Ensure the string ends with the message separator and a null terminator
-    if ((str_buffer_len - serial_data_length) >= (SBP_MSG_SEPARATOR_LEN + 1)) {
+    if ((str_buffer_len - serial_data_length) >= (int)(SBP_MSG_SEPARATOR_LEN + 1)) {
         serial_data_length += snprintf(
             str_buffer + serial_data_length, SBP_MSG_SEPARATOR_LEN + 1, SBP_MSG_SEPARATOR
         );
