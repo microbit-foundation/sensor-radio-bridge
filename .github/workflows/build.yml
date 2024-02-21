@@ -5,9 +5,11 @@ on:
     branches: '*'
   pull_request:
     branches: '*'
+  release:
+    types: published
 
 jobs:
-  build:
+  build-projects:
     runs-on: ubuntu-22.04
     name: Build & upload hex
     steps:
@@ -19,23 +21,85 @@ jobs:
         with:
           name: radio-bridge
           path: radio-bridge.hex
+          if-no-files-found: error
       - name: Upload Radio Bridge Dev hex file
         uses: actions/upload-artifact@v4
         with:
           name: radio-bridge-dev
           path: radio-bridge-dev.hex
+          if-no-files-found: error
       - name: Upload Radio Remote hex file
         uses: actions/upload-artifact@v4
         with:
           name: radio-remote
           path: radio-remote.hex
+          if-no-files-found: error
       - name: Upload Radio Remote Dev hex file
         uses: actions/upload-artifact@v4
         with:
           name: radio-remote-dev
           path: radio-remote-dev.hex
+          if-no-files-found: error
       - name: Upload Local Sensors hex file
         uses: actions/upload-artifact@v4
         with:
           name: local-sensors
           path: local-sensors.hex
+          if-no-files-found: error
+
+  release-asset:
+    name: Upload artifact as GH Release asset
+    needs: build-projects
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set the GH Release tag to env variable $TAG
+        run: echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Download all hex file
+        uses: actions/download-artifact@v4
+        id: download-hex-files
+      - name: Upload Radio Bridge hex file to GH Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{github.event.release.upload_url}}
+          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-bridge/radio-bridge.hex
+          asset_name: radio-bridge-${{ env.TAG }}.hex
+          asset_content_type: text/plain
+      - name: Upload Radio Bridge Dev hex file to GH Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{github.event.release.upload_url}}
+          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-bridge-dev/radio-bridge-dev.hex
+          asset_name: radio-bridge-${{ env.TAG }}-dev.hex
+          asset_content_type: text/plain
+      - name: Upload Radio Remote hex file to GH Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{github.event.release.upload_url}}
+          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-remote/radio-remote.hex
+          asset_name: radio-remote-${{ env.TAG }}.hex
+          asset_content_type: text/plain
+      - name: Upload Radio Remote Dev hex file to GH Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{github.event.release.upload_url}}
+          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-remote-dev/radio-remote-dev.hex
+          asset_name: radio-remote-${{ env.TAG }}-dev.hex
+          asset_content_type: text/plain
+      - name: Upload Local Sensors hex file to GH Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{github.event.release.upload_url}}
+          asset_path: ${{steps.download-hex-files.outputs.download-path}}/local-sensors/local-sensors.hex
+          asset_name: local-sensors-${{ env.TAG }}.hex
+          asset_content_type: text/plain
