@@ -11,27 +11,46 @@ jobs:
     runs-on: ubuntu-22.04
     name: Build & upload hex
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.11'
       - name: Setup arm-none-eabi-gcc ${{ matrix.gcc }}
         uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
           release: '10.3-2021.10'
       - name: Install Ninja via PyPI
-        run: python -m pip install cmake==3.22.6 ninja==1.11.1
+        run: python -m pip install cmake==3.22.6
       - name: Check Versions
         run: |
           arm-none-eabi-gcc --version
           cmake --version
-          ninja --version
           python --version
-      - name: Build default project using build.py
-        run: python build.py
-      - name: Upload hex file
-        uses: actions/upload-artifact@v1
+      - name: Build all projects
+        run: python build_all.py
+      - name: Upload Radio Bridge hex file
+        uses: actions/upload-artifact@v4
         with:
-          name: sensor-serial-bridge
-          path: MICROBIT.hex
+          name: radio-bridge
+          path: radio-bridge.hex
+      - name: Upload Radio Bridge Dev hex file
+        uses: actions/upload-artifact@v4
+        with:
+          name: radio-bridge-dev
+          path: radio-bridge-dev.hex
+      - name: Upload Radio Remote hex file
+        uses: actions/upload-artifact@v4
+        with:
+          name: radio-remote
+          path: radio-remote.hex
+      - name: Upload Radio Remote Dev hex file
+        uses: actions/upload-artifact@v4
+        with:
+          name: radio-remote-dev
+          path: radio-remote-dev.hex
+      - name: Upload Local Sensors hex file
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-sensors
+          path: local-sensors.hex
