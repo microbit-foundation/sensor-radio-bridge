@@ -5,27 +5,26 @@
 This is a simple initial version of a micro:bit C++ programme to receive
 accelerometer data via radio and bridge it to a computer via serial.
 
-In its current initial state it simply sends the data from the current
-micro:bit in the following format:
+In its current initial state it needs some basic configuration and it
+sends the data from the current micro:bit in the following format:
 
 ```
-AX[408],AY[748],AZ[-1288],BA[0],BB[1],BL[0]
-AX[520],AY[-172],AZ[-448],BA[0],BB[1],BL[0]
-AX[-412],AY[436],AZ[340],BA[0],BB[1],BL[0]
-AX[-408],AY[504],AZ[-788],BA[0],BB[1],BL[0]
-AX[-480],AY[592],AZ[-736],BA[0],BB[1],BL[0]
+P[12345678]AX[408]AY[748]AZ[-1288]BA[0]BB[1]
+P[12345679]AX[520]AY[-172]AZ[-448]BA[0]BB[1]
+P[1234567A]AX[-412]AY[436]AZ[340]BA[0]BB[1]
+P[1234567B]AX[-408]AY[504]AZ[-788]BA[0]BB[1]
+P[1234567C]AX[-480]AY[592]AZ[-736]BA[0]BB[1]
 ```
 
 Where:
+- P = Unique identifier of the protocol message
 - AX = Accelerometer X axis
 - AY = Accelerometer X axis
 - AZ = Accelerometer X axis
 - BA = Button A state
 - BB = Button B state
-- BL = Button Logo state
 
-There is no reasoning behind this data format and it's only a starting point,
-to be modified once we know the requirements for the tool.
+More information about the protocol will be defined soon.
 
 
 ## Installation
@@ -50,6 +49,7 @@ You need some open source pre-requisites to build this repo. You can either inst
   ```
 - In the root of this repository run:
   ```
-  python build.py
+  python build_all.py
   ```
-- The hex file will be built `MICROBIT.hex` and placed in the root folder.
+- The multiple hex files will be placed in the root folder.
+
