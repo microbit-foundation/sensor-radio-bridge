@@ -41,7 +41,7 @@ def clean_build(root_dir, hex_name, build_flags={}):
     os.environ["CXXFLAGS"] = ""
     for flag, value in build_flags.items():
         os.environ["CXXFLAGS"] += f" -D{flag}={value}"
-    print(f"\n{'#' * 80}\n# Building: {hex_name}\n{'#' * 80}")
+    print(f"\n{'#' * 80}\n# Building: {hex_name}\n{'#' * 80}", flush=True)
     # build() exits if any system call returns a non-zero exit code
     build(clean=True, verbose=False, parallelism=os.cpu_count())
 

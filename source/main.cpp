@@ -312,7 +312,7 @@ int main() {
                 uBit.serial.send((uint8_t *)serial_data, serial_str_length, SYNC_SLEEP);
                 uBit.display.print(IMG_RUNNING);
             } else {
-                // Stale data, blink the waiting image until new data is received
+                // No new data received, blink the waiting image
                 static bool blink = true;
                 static uint32_t blink_count = 0;
                 if (blink_count++ % 30 == 0) {
