@@ -12,23 +12,8 @@ jobs:
     name: Build & upload hex
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Setup arm-none-eabi-gcc ${{ matrix.gcc }}
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
-        with:
-          release: '10.3-2021.10'
-      - name: Install Ninja via PyPI
-        run: python -m pip install cmake==3.22.6
-      - name: Check Versions
-        run: |
-          arm-none-eabi-gcc --version
-          cmake --version
-          python --version
       - name: Build all projects
-        run: python build_all.py
+        run: docker run -v $(pwd):/home --rm ghcr.io/microbit-foundation/daplink:2022.01.1 python build_all.py
       - name: Upload Radio Bridge hex file
         uses: actions/upload-artifact@v4
         with:
