@@ -59,47 +59,27 @@ jobs:
         uses: actions/download-artifact@v4
         id: download-hex-files
       - name: Upload Radio Bridge hex file to GH Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{github.event.release.upload_url}}
-          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-bridge/radio-bridge.hex
+          file: ${{steps.download-hex-files.outputs.download-path}}/radio-bridge/radio-bridge.hex
           asset_name: radio-bridge-${{ env.TAG }}.hex
-          asset_content_type: text/plain
       - name: Upload Radio Bridge Dev hex file to GH Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{github.event.release.upload_url}}
-          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-bridge-dev/radio-bridge-dev.hex
+          file: ${{steps.download-hex-files.outputs.download-path}}/radio-bridge-dev/radio-bridge-dev.hex
           asset_name: radio-bridge-${{ env.TAG }}-dev.hex
-          asset_content_type: text/plain
       - name: Upload Radio Remote hex file to GH Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{github.event.release.upload_url}}
-          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-remote/radio-remote.hex
+          file: ${{steps.download-hex-files.outputs.download-path}}/radio-remote/radio-remote.hex
           asset_name: radio-remote-${{ env.TAG }}.hex
-          asset_content_type: text/plain
       - name: Upload Radio Remote Dev hex file to GH Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{github.event.release.upload_url}}
-          asset_path: ${{steps.download-hex-files.outputs.download-path}}/radio-remote-dev/radio-remote-dev.hex
+          file: ${{steps.download-hex-files.outputs.download-path}}/radio-remote-dev/radio-remote-dev.hex
           asset_name: radio-remote-${{ env.TAG }}-dev.hex
-          asset_content_type: text/plain
       - name: Upload Local Sensors hex file to GH Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{github.event.release.upload_url}}
-          asset_path: ${{steps.download-hex-files.outputs.download-path}}/local-sensors/local-sensors.hex
+          file: ${{steps.download-hex-files.outputs.download-path}}/local-sensors/local-sensors.hex
           asset_name: local-sensors-${{ env.TAG }}.hex
-          asset_content_type: text/plain
