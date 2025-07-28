@@ -8,7 +8,8 @@ extern MicroBit uBit;
 
 // The project type build flags will be configured via the build_all.py script
 // no need to edit any of the macros below
-#define BUILD_LOCAL_SENSORS     1
+#define BUILD_LOCAL_SENSORS     6
+#define BUILD_LOCAL_SENSORS_DEV 1
 #define BUILD_RADIO_REMOTE      2
 #define BUILD_RADIO_REMOTE_DEV  3
 #define BUILD_RADIO_BRIDGE      4
@@ -16,10 +17,15 @@ extern MicroBit uBit;
 
 
 #ifndef PROJECT_BUILD_TYPE
-#define PROJECT_BUILD_TYPE      BUILD_LOCAL_SENSORS
+#define PROJECT_BUILD_TYPE      BUILD_LOCAL_SENSORS_DEV
 #endif
 
 #if PROJECT_BUILD_TYPE == BUILD_LOCAL_SENSORS
+#define RADIO_REMOTE            0
+#define RADIO_BRIDGE            0
+#define DEV_MODE                0
+#define IMG_RUNNING             IMG_SQUARE
+#elif PROJECT_BUILD_TYPE == BUILD_LOCAL_SENSORS_DEV
 #define RADIO_REMOTE            0
 #define RADIO_BRIDGE            0
 #define DEV_MODE                1

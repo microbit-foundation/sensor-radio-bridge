@@ -111,14 +111,13 @@ int setRemoteMbId(sbp_state_s *protocol_state) {
 }
 
 /**
- * @brief Get the Radio Frequency from Non Volatile Memory, or the default
- * value if not set in NVM.
+ * @brief Retrieves the remote micro:bit ID from Non Volatile Memory (NVM).
  *
- * The default value, if noting stored in NVM, will be the unique ID from
+ * The default value, if nothing stored in NVM, will be the unique ID from
  * this micro:bit. This is statistically less likely to match the remote ID
  * than picking a number like 0.
  *
- * @return The radio frequency.
+ * @return The stored remote micro:bit ID.
  */
 uint32_t getRemoteMbId() {
     uint32_t *stored_remote_mb_id = (uint32_t *)REMOTE_MB_ID_ADDR;

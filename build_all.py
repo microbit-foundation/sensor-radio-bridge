@@ -62,7 +62,8 @@ def main():
     clean_build(ROOT_DIR, "radio-bridge-dev.hex", build_flags={"PROJECT_BUILD_TYPE": "5"})
     clean_build(ROOT_DIR, "radio-remote.hex", build_flags={"PROJECT_BUILD_TYPE": "2"})
     clean_build(ROOT_DIR, "radio-bridge.hex", build_flags={"PROJECT_BUILD_TYPE": "4"})
-    clean_build(ROOT_DIR, "local-sensors.hex", build_flags={"PROJECT_BUILD_TYPE": "1"})
+    clean_build(ROOT_DIR, "local-sensors-dev.hex", build_flags={"PROJECT_BUILD_TYPE": "1"})
+    clean_build(ROOT_DIR, "local-sensors.hex", build_flags={"PROJECT_BUILD_TYPE": "6"})
 
 
 if __name__ == '__main__':
